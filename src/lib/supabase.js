@@ -15,7 +15,7 @@ export const supabase = isSupabaseConfigured
 
 // Admin phone numbers (can edit any user's category)
 export const ADMIN_PHONES = [
-    '9999999991', // Pranav - Replace with actual number
+    '9314422001', // Pranav - Replace with actual number
     '9999999992', // Sudha - Replace with actual number  
     '9999999993', // Ujjwal - Replace with actual number
 ]
@@ -26,6 +26,7 @@ export const CATEGORIES = {
     normie: { name: 'The cool Normie', goal: 50 },
     rockstar: { name: 'The future Rockstar', goal: 75 },
     superhuman: { name: 'The Superhuman', goal: 100 },
+    titan: { name: 'The Titan', goal: 200 },
 }
 
 // Champion emojis and growth stages
