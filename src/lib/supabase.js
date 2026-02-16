@@ -16,8 +16,11 @@ export const supabase = isSupabaseConfigured
 // Admin phone numbers (can edit any user's category)
 export const ADMIN_PHONES = [
     '9314422001', // Pranav - Replace with actual number
-    '9999999992', // Sudha - Replace with actual number  
-    '9999999993', // Ujjwal - Replace with actual number
+    '7349327332', // Sudha - Replace with actual number  
+    '8197898805',
+    '9944069451',
+    '9380936622',
+    '9779497219', // Ujjwal - Replace with actual number
 ]
 
 // Category goals in kilometers
