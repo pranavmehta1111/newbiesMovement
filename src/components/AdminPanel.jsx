@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
-import { CATEGORIES, getAllUsers, updateUserCategory } from '../lib/supabase'
+import { CATEGORIES, getAllUsers, updateUserCategory, deleteUser, DELETE_PHONE } from '../lib/supabase'
 
-export default function AdminPanel() {
+export default function AdminPanel({ currentPhone }) {
+    const canDelete = currentPhone === DELETE_PHONE
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
     const [updating, setUpdating] = useState(null)
+    const [deleting, setDeleting] = useState(null)
+    const [confirmDelete, setConfirmDelete] = useState(null)
     const [search, setSearch] = useState('')
 
     useEffect(() => {
@@ -32,6 +35,19 @@ export default function AdminPanel() {
         }
     }
 
+    const handleDeleteUser = async (userId) => {
+        setDeleting(userId)
+        try {
+            await deleteUser(userId)
+            setUsers(users.filter(u => u.id !== userId))
+        } catch (err) {
+            alert('Failed to delete user: ' + err.message)
+        } finally {
+            setDeleting(null)
+            setConfirmDelete(null)
+        }
+    }
+
     const filteredUsers = users.filter(u =>
         u.name?.toLowerCase().includes(search.toLowerCase()) ||
         u.phone?.includes(search)
@@ -47,7 +63,7 @@ export default function AdminPanel() {
             </div>
 
             <p className="text-sm text-[color:var(--text-secondary)] mb-4">
-                Change any user's category as needed.
+                Change any user's category or delete users as needed.
             </p>
 
             {/* Search */}
@@ -79,12 +95,28 @@ export default function AdminPanel() {
                                 className="select py-2 px-3 w-auto min-w-[140px]"
                                 value={user.category}
                                 onChange={(e) => handleCategoryChange(user.id, e.target.value)}
-                                disabled={updating === user.id}
+                                disabled={updating === user.id || deleting === user.id}
                             >
                                 {Object.entries(CATEGORIES).map(([key, { name }]) => (
                                     <option key={key} value={key}>{name}</option>
                                 ))}
                             </select>
+
+                            {/* Delete button - only for DELETE_PHONE */}
+                            {canDelete && (
+                                <button
+                                    onClick={() => setConfirmDelete(user)}
+                                    disabled={deleting === user.id}
+                                    className="p-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--danger)] hover:bg-[color:var(--danger)]/10 transition-colors"
+                                    title="Delete user"
+                                >
+                                    {deleting === user.id ? (
+                                        <div className="spinner w-4 h-4 border-2"></div>
+                                    ) : (
+                                        '🗑️'
+                                    )}
+                                </button>
+                            )}
 
                             {updating === user.id && (
                                 <div className="spinner w-5 h-5 border-2"></div>
@@ -106,6 +138,44 @@ export default function AdminPanel() {
             >
                 Refresh List
             </button>
+
+            {/* Delete Confirmation Modal */}
+            {confirmDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="card w-full max-w-sm fade-in text-center">
+                        <div className="text-4xl mb-3">⚠️</div>
+                        <h4 className="font-semibold text-lg mb-2">Delete User?</h4>
+                        <p className="text-sm text-[color:var(--text-secondary)] mb-1">
+                            Are you sure you want to delete
+                        </p>
+                        <p className="font-semibold text-[color:var(--danger)] mb-1">
+                            {confirmDelete.name}
+                        </p>
+                        <p className="text-xs text-[color:var(--text-muted)] mb-4">
+                            ({confirmDelete.phone})
+                        </p>
+                        <p className="text-xs text-[color:var(--text-muted)] mb-6">
+                            This will permanently delete the user and all their activity data. This action cannot be undone.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmDelete(null)}
+                                className="btn-secondary flex-1"
+                                disabled={deleting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleDeleteUser(confirmDelete.id)}
+                                disabled={deleting}
+                                className="flex-1 py-2 px-4 rounded-xl font-medium transition-all bg-[color:var(--danger)] text-white hover:opacity-90 disabled:opacity-50"
+                            >
+                                {deleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

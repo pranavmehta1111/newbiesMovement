@@ -46,6 +46,9 @@ CREATE POLICY "Allow public insert users" ON users
 CREATE POLICY "Allow public update users" ON users
   FOR UPDATE USING (true);
 
+CREATE POLICY "Allow public delete users" ON users
+  FOR DELETE USING (true);
+
 -- Activities policies
 CREATE POLICY "Allow public read activities" ON activities
   FOR SELECT USING (true);

@@ -23,6 +23,9 @@ export const ADMIN_PHONES = [
     '9779497219', // Ujjwal - Replace with actual number
 ]
 
+// Phone number with delete user permission
+export const DELETE_PHONE = '9887922770'
+
 // Category goals in kilometers
 export const CATEGORIES = {
     underdog: { name: 'The resting Underdog', goal: 25 },
@@ -152,6 +155,20 @@ export async function deleteActivity(activityId) {
 
     if (error) {
         console.error('Error deleting activity:', error)
+        throw error
+    }
+}
+
+export async function deleteUser(userId) {
+    if (!supabase) throw new Error('Database not configured')
+
+    const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId)
+
+    if (error) {
+        console.error('Error deleting user:', error)
         throw error
     }
 }

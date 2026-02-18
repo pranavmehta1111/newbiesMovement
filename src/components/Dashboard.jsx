@@ -89,7 +89,7 @@ export default function Dashboard({ user, onLogout }) {
                 {/* Admin panel (if admin and toggled) */}
                 {isAdmin && showAdmin && (
                     <div className="fade-in">
-                        <AdminPanel />
+                        <AdminPanel currentPhone={user.phone} />
                     </div>
                 )}
 
@@ -98,8 +98,8 @@ export default function Dashboard({ user, onLogout }) {
                     <button
                         onClick={() => setActiveTab('dashboard')}
                         className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'dashboard'
-                                ? 'bg-[color:var(--bg-card)] shadow-sm'
-                                : 'text-[color:var(--text-secondary)]'
+                            ? 'bg-[color:var(--bg-card)] shadow-sm'
+                            : 'text-[color:var(--text-secondary)]'
                             }`}
                     >
                         Dashboard
@@ -107,8 +107,8 @@ export default function Dashboard({ user, onLogout }) {
                     <button
                         onClick={() => setActiveTab('leaderboard')}
                         className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'leaderboard'
-                                ? 'bg-[color:var(--bg-card)] shadow-sm'
-                                : 'text-[color:var(--text-secondary)]'
+                            ? 'bg-[color:var(--bg-card)] shadow-sm'
+                            : 'text-[color:var(--text-secondary)]'
                             }`}
                     >
                         Leaderboard
