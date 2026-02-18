@@ -192,12 +192,12 @@ export async function getLeaderboardByCategory(category) {
         return []
     }
 
-    // Calculate totals and streaks
+    // Calculate totals and streaks, then filter out users with 0km
     return users.map(user => {
         const totalKm = user.activities?.reduce((sum, a) => sum + parseFloat(a.distance_km), 0) || 0
         const streak = calculateStreak(user.activities || [])
         return { ...user, totalKm, streak }
-    }).sort((a, b) => b.totalKm - a.totalKm)
+    }).filter(user => user.totalKm > 0).sort((a, b) => b.totalKm - a.totalKm)
 }
 
 export async function getAllUsers() {
