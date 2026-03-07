@@ -1,14 +1,17 @@
 import { useMemo } from 'react'
 
 export default function Calendar({ activities, onDayClick }) {
-    // February 2026 calendar data
-    const calendarData = useMemo(() => {
-        const year = 2026
-        const month = 1 // February (0-indexed)
+    // Dynamic calendar for the current month
+    const { calendarData, monthLabel } = useMemo(() => {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = now.getMonth() // 0-indexed
 
-        // February 2026 starts on Sunday (0)
         const firstDay = new Date(year, month, 1).getDay()
-        const daysInMonth = 28 // 2026 is not a leap year
+        const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+        const monthName = new Date(year, month).toLocaleString('en-US', { month: 'long' })
+        const monthLabel = `${monthName} ${year}`
 
         // Create activity lookup by date
         const activityByDate = {}
@@ -31,7 +34,7 @@ export default function Calendar({ activities, onDayClick }) {
 
         // Days of the month
         for (let day = 1; day <= daysInMonth; day++) {
-            const date = `2026-02-${String(day).padStart(2, '0')}`
+            const date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
             days.push({
                 day,
                 date,
@@ -40,14 +43,14 @@ export default function Calendar({ activities, onDayClick }) {
             })
         }
 
-        return days
+        return { calendarData: days, monthLabel }
     }, [activities])
 
     const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
     return (
         <div className="card">
-            <h3 className="font-semibold text-lg mb-4">February 2026</h3>
+            <h3 className="font-semibold text-lg mb-4">{monthLabel}</h3>
 
             {/* Week day headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
@@ -65,12 +68,12 @@ export default function Calendar({ activities, onDayClick }) {
                         key={index}
                         onClick={() => item.distance > 0 && onDayClick?.(item.date)}
                         className={`calendar-day text-sm ${item.day === null
-                                ? 'other-month'
-                                : item.distance > 0
-                                    ? 'has-activity'
-                                    : item.isToday
-                                        ? 'today'
-                                        : ''
+                            ? 'other-month'
+                            : item.distance > 0
+                                ? 'has-activity'
+                                : item.isToday
+                                    ? 'today'
+                                    : ''
                             }`}
                         title={item.distance > 0 ? `${item.distance.toFixed(1)} km` : ''}
                     >

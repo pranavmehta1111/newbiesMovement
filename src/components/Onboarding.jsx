@@ -55,10 +55,10 @@ export default function Onboarding({ onComplete }) {
                         <div
                             key={s}
                             className={`w-3 h-3 rounded-full transition-all ${s === step
-                                    ? 'w-8 bg-[color:var(--accent)]'
-                                    : s < step
-                                        ? 'bg-[color:var(--accent)]'
-                                        : 'bg-[color:var(--border)]'
+                                ? 'w-8 bg-[color:var(--accent)]'
+                                : s < step
+                                    ? 'bg-[color:var(--accent)]'
+                                    : 'bg-[color:var(--border)]'
                                 }`}
                         />
                     ))}
@@ -69,7 +69,7 @@ export default function Onboarding({ onComplete }) {
                     <div className="fade-in">
                         <h2 className="text-2xl font-bold text-center mb-2">Welcome, Challenger! 👋</h2>
                         <p className="text-center text-[color:var(--text-secondary)] mb-8">
-                            Let's get you set up for the February 2026 challenge
+                            Let's get you set up for the movement challenge
                         </p>
 
                         <div className="mb-6">
@@ -103,8 +103,8 @@ export default function Onboarding({ onComplete }) {
                                     key={key}
                                     onClick={() => setCategory(key)}
                                     className={`w-full p-4 rounded-xl border-2 text-left transition-all ${category === key
-                                            ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/10'
-                                            : 'border-[color:var(--border)] hover:border-[color:var(--accent-light)]'
+                                        ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/10'
+                                        : 'border-[color:var(--border)] hover:border-[color:var(--accent-light)]'
                                         }`}
                                 >
                                     <div className="flex items-center justify-between">

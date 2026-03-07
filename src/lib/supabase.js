@@ -215,6 +215,37 @@ export async function getAllUsers() {
     return data
 }
 
+// Get current month date range (for filtering)
+export function getCurrentMonthRange() {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = now.getMonth()
+    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`
+    return { firstDay, lastDay }
+}
+
+// Get current month label
+export function getCurrentMonthLabel() {
+    const now = new Date()
+    return now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+}
+
+// Reset all activities (admin only)
+export async function resetAllActivities() {
+    if (!supabase) throw new Error('Database not configured')
+
+    const { error } = await supabase
+        .from('activities')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000') // delete all rows
+
+    if (error) {
+        console.error('Error resetting activities:', error)
+        throw error
+    }
+}
+
 function calculateStreak(activities) {
     if (!activities.length) return 0
 

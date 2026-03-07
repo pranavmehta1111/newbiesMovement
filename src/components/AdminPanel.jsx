@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { CATEGORIES, getAllUsers, updateUserCategory, deleteUser, DELETE_PHONE } from '../lib/supabase'
+import { CATEGORIES, getAllUsers, updateUserCategory, deleteUser, DELETE_PHONE, resetAllActivities, getCurrentMonthLabel } from '../lib/supabase'
 
 export default function AdminPanel({ currentPhone }) {
     const canDelete = currentPhone === DELETE_PHONE
@@ -8,6 +8,8 @@ export default function AdminPanel({ currentPhone }) {
     const [updating, setUpdating] = useState(null)
     const [deleting, setDeleting] = useState(null)
     const [confirmDelete, setConfirmDelete] = useState(null)
+    const [confirmReset, setConfirmReset] = useState(false)
+    const [resetting, setResetting] = useState(false)
     const [search, setSearch] = useState('')
 
     useEffect(() => {
@@ -48,6 +50,19 @@ export default function AdminPanel({ currentPhone }) {
         }
     }
 
+    const handleMonthlyReset = async () => {
+        setResetting(true)
+        try {
+            await resetAllActivities()
+            alert('All activities have been reset! 🔄')
+        } catch (err) {
+            alert('Failed to reset: ' + err.message)
+        } finally {
+            setResetting(false)
+            setConfirmReset(false)
+        }
+    }
+
     const filteredUsers = users.filter(u =>
         u.name?.toLowerCase().includes(search.toLowerCase()) ||
         u.phone?.includes(search)
@@ -65,6 +80,24 @@ export default function AdminPanel({ currentPhone }) {
             <p className="text-sm text-[color:var(--text-secondary)] mb-4">
                 Change any user's category or delete users as needed.
             </p>
+
+            {/* Monthly Reset Section */}
+            <div className="p-4 rounded-xl bg-[color:var(--danger)]/5 border border-[color:var(--danger)]/20 mb-4">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h4 className="font-medium text-sm">Monthly Reset</h4>
+                        <p className="text-xs text-[color:var(--text-muted)] mt-1">
+                            Clear all activity data for a fresh start — {getCurrentMonthLabel()}
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => setConfirmReset(true)}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[color:var(--danger)]/10 text-[color:var(--danger)] hover:bg-[color:var(--danger)]/20 transition-colors"
+                    >
+                        🔄 Reset
+                    </button>
+                </div>
+            </div>
 
             {/* Search */}
             <input
@@ -171,6 +204,38 @@ export default function AdminPanel({ currentPhone }) {
                                 className="flex-1 py-2 px-4 rounded-xl font-medium transition-all bg-[color:var(--danger)] text-white hover:opacity-90 disabled:opacity-50"
                             >
                                 {deleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Monthly Reset Confirmation Modal */}
+            {confirmReset && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="card w-full max-w-sm fade-in text-center">
+                        <div className="text-4xl mb-3">🔄</div>
+                        <h4 className="font-semibold text-lg mb-2">Monthly Reset</h4>
+                        <p className="text-sm text-[color:var(--text-secondary)] mb-4">
+                            This will <span className="font-bold text-[color:var(--danger)]">permanently delete ALL activity data</span> for every user. This is intended for starting a fresh month.
+                        </p>
+                        <p className="text-xs text-[color:var(--text-muted)] mb-6">
+                            ⚠️ This action cannot be undone. User profiles will remain intact.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setConfirmReset(false)}
+                                className="btn-secondary flex-1"
+                                disabled={resetting}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleMonthlyReset}
+                                disabled={resetting}
+                                className="flex-1 py-2 px-4 rounded-xl font-medium transition-all bg-[color:var(--danger)] text-white hover:opacity-90 disabled:opacity-50"
+                            >
+                                {resetting ? 'Resetting...' : 'Reset All Data'}
                             </button>
                         </div>
                     </div>

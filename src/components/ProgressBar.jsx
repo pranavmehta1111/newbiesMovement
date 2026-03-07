@@ -1,7 +1,20 @@
 import { CATEGORIES, getChampionEmoji, getGrowthStage } from '../lib/supabase'
 
-export default function ProgressBar({ champion, category, totalKm }) {
-    const goal = CATEGORIES[category]?.goal || 50
+export default function ProgressBar({
+    champion,
+    category,
+    totalKm,
+    customGoal,
+    editingGoal,
+    goalInput,
+    onEditGoal,
+    onGoalInputChange,
+    onSaveGoal,
+    onResetGoal,
+    onCancelEdit,
+}) {
+    const categoryGoal = CATEGORIES[category]?.goal || 50
+    const goal = customGoal || categoryGoal
     const percentage = Math.min((totalKm / goal) * 100, 150) // Cap visual at 150%
     const actualPercentage = (totalKm / goal) * 100
     const isComplete = actualPercentage >= 100
@@ -15,15 +28,64 @@ export default function ProgressBar({ champion, category, totalKm }) {
                     <h3 className="font-semibold text-lg">Your Progress</h3>
                     <p className="text-sm text-[color:var(--text-secondary)]">
                         {CATEGORIES[category]?.name || 'Unknown Category'}
+                        {customGoal && <span className="text-xs text-[color:var(--accent)] ml-1">(Custom)</span>}
                     </p>
                 </div>
                 <div className="text-right">
-                    <p className="text-2xl font-bold">
-                        {totalKm.toFixed(1)} <span className="text-base font-normal text-[color:var(--text-secondary)]">/ {goal} km</span>
-                    </p>
-                    <p className="text-sm text-[color:var(--accent)]">
-                        {actualPercentage.toFixed(0)}%
-                    </p>
+                    {editingGoal ? (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="number"
+                                className="input w-20 py-1 px-2 text-sm text-right"
+                                value={goalInput}
+                                onChange={(e) => onGoalInputChange(e.target.value)}
+                                min="1"
+                                max="1000"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') onSaveGoal()
+                                    if (e.key === 'Escape') onCancelEdit()
+                                }}
+                            />
+                            <span className="text-xs text-[color:var(--text-muted)]">km</span>
+                            <button
+                                onClick={onSaveGoal}
+                                className="text-xs px-2 py-1 rounded bg-[color:var(--accent)] text-white"
+                                title="Save"
+                            >
+                                ✓
+                            </button>
+                            {customGoal && (
+                                <button
+                                    onClick={onResetGoal}
+                                    className="text-xs px-2 py-1 rounded bg-[color:var(--danger)]/20 text-[color:var(--danger)]"
+                                    title="Reset to default"
+                                >
+                                    ↺
+                                </button>
+                            )}
+                            <button
+                                onClick={onCancelEdit}
+                                className="text-xs text-[color:var(--text-muted)]"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ) : (
+                        <div
+                            className="cursor-pointer group"
+                            onClick={onEditGoal}
+                            title="Click to set a custom goal"
+                        >
+                            <p className="text-2xl font-bold">
+                                {totalKm.toFixed(1)} <span className="text-base font-normal text-[color:var(--text-secondary)]">/ {goal} km</span>
+                            </p>
+                            <p className="text-sm text-[color:var(--accent)] flex items-center justify-end gap-1">
+                                {actualPercentage.toFixed(0)}%
+                                <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity text-[color:var(--text-muted)]">✏️</span>
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 

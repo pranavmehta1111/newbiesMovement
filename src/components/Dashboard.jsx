@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import ProgressBar from './ProgressBar'
 import Calendar from './Calendar'
 import ActivityLog from './ActivityLog'
 import Leaderboard from './Leaderboard'
 import AdminPanel from './AdminPanel'
-import { getActivities, addActivity, deleteActivity, ADMIN_PHONES, supabase } from '../lib/supabase'
+import StatsCard from './StatsCard'
+import MotivationalBanner from './MotivationalBanner'
+import { getActivities, addActivity, deleteActivity, ADMIN_PHONES, CATEGORIES, getCurrentMonthLabel, getCurrentMonthRange, supabase } from '../lib/supabase'
+
+const LEADERBOARD_KEY = 'newbies_show_leaderboard'
+const CUSTOM_GOAL_KEY = 'newbies_custom_goal'
 
 export default function Dashboard({ user, onLogout }) {
     const [activities, setActivities] = useState([])
@@ -12,8 +17,40 @@ export default function Dashboard({ user, onLogout }) {
     const [activeTab, setActiveTab] = useState('dashboard')
     const [showAdmin, setShowAdmin] = useState(false)
 
+    // Leaderboard toggle — persisted in localStorage
+    const [showLeaderboard, setShowLeaderboard] = useState(() => {
+        const saved = localStorage.getItem(LEADERBOARD_KEY)
+        return saved !== null ? JSON.parse(saved) : true
+    })
+
+    // Custom goal — persisted in localStorage per user
+    const [customGoal, setCustomGoal] = useState(() => {
+        const saved = localStorage.getItem(`${CUSTOM_GOAL_KEY}_${user.phone}`)
+        return saved ? parseFloat(saved) : null
+    })
+    const [editingGoal, setEditingGoal] = useState(false)
+    const [goalInput, setGoalInput] = useState('')
+
     const isAdmin = ADMIN_PHONES.includes(user.phone)
-    const totalKm = activities.reduce((sum, a) => sum + parseFloat(a.distance_km), 0)
+    const monthLabel = getCurrentMonthLabel()
+
+    // Filter activities to current month
+    const currentMonthActivities = useMemo(() => {
+        const { firstDay, lastDay } = getCurrentMonthRange()
+        return activities.filter(a => a.logged_at >= firstDay && a.logged_at <= lastDay)
+    }, [activities])
+
+    const totalKm = currentMonthActivities.reduce((sum, a) => sum + parseFloat(a.distance_km), 0)
+    const effectiveGoal = customGoal || CATEGORIES[user.category]?.goal || 50
+
+    // Persist leaderboard toggle
+    useEffect(() => {
+        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(showLeaderboard))
+        // If leaderboard hidden and currently on leaderboard tab, switch back
+        if (!showLeaderboard && activeTab === 'leaderboard') {
+            setActiveTab('dashboard')
+        }
+    }, [showLeaderboard])
 
     const fetchActivities = useCallback(async () => {
         setLoading(true)
@@ -49,6 +86,23 @@ export default function Dashboard({ user, onLogout }) {
         await fetchActivities()
     }
 
+    const handleSaveGoal = () => {
+        const val = parseFloat(goalInput)
+        if (!isNaN(val) && val > 0 && val <= 1000) {
+            setCustomGoal(val)
+            localStorage.setItem(`${CUSTOM_GOAL_KEY}_${user.phone}`, val.toString())
+        }
+        setEditingGoal(false)
+        setGoalInput('')
+    }
+
+    const handleResetGoal = () => {
+        setCustomGoal(null)
+        localStorage.removeItem(`${CUSTOM_GOAL_KEY}_${user.phone}`)
+        setEditingGoal(false)
+        setGoalInput('')
+    }
+
     return (
         <div className="min-h-screen pb-20">
             {/* Header */}
@@ -60,7 +114,7 @@ export default function Dashboard({ user, onLogout }) {
                                 Hey, {user.name}! 👋
                             </h1>
                             <p className="text-sm text-[color:var(--text-secondary)]">
-                                February 2026 Challenge
+                                {monthLabel} • Let's Move! 🏃‍♂️
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -81,6 +135,19 @@ export default function Dashboard({ user, onLogout }) {
                             </button>
                         </div>
                     </div>
+
+                    {/* Leaderboard toggle */}
+                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-[color:var(--border)]">
+                        <span className="text-xs text-[color:var(--text-muted)]">Show Leaderboard</span>
+                        <label className="toggle-switch">
+                            <input
+                                type="checkbox"
+                                checked={showLeaderboard}
+                                onChange={(e) => setShowLeaderboard(e.target.checked)}
+                            />
+                            <span className="toggle-slider"></span>
+                        </label>
+                    </div>
                 </div>
             </header>
 
@@ -93,43 +160,62 @@ export default function Dashboard({ user, onLogout }) {
                     </div>
                 )}
 
-                {/* Tab navigation */}
-                <div className="flex gap-2 bg-[color:var(--bg-secondary)] p-1 rounded-xl">
-                    <button
-                        onClick={() => setActiveTab('dashboard')}
-                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'dashboard'
-                            ? 'bg-[color:var(--bg-card)] shadow-sm'
-                            : 'text-[color:var(--text-secondary)]'
-                            }`}
-                    >
-                        Dashboard
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('leaderboard')}
-                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'leaderboard'
-                            ? 'bg-[color:var(--bg-card)] shadow-sm'
-                            : 'text-[color:var(--text-secondary)]'
-                            }`}
-                    >
-                        Leaderboard
-                    </button>
-                </div>
+                {/* Tab navigation (only show if leaderboard is enabled) */}
+                {showLeaderboard && (
+                    <div className="flex gap-2 bg-[color:var(--bg-secondary)] p-1 rounded-xl">
+                        <button
+                            onClick={() => setActiveTab('dashboard')}
+                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'dashboard'
+                                ? 'bg-[color:var(--bg-card)] shadow-sm'
+                                : 'text-[color:var(--text-secondary)]'
+                                }`}
+                        >
+                            Dashboard
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('leaderboard')}
+                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'leaderboard'
+                                ? 'bg-[color:var(--bg-card)] shadow-sm'
+                                : 'text-[color:var(--text-secondary)]'
+                                }`}
+                        >
+                            Leaderboard
+                        </button>
+                    </div>
+                )}
 
-                {activeTab === 'dashboard' ? (
+                {(activeTab === 'dashboard' || !showLeaderboard) ? (
                     <div className="space-y-6 fade-in">
-                        {/* Progress Bar */}
+                        {/* Motivational Banner */}
+                        <MotivationalBanner />
+
+                        {/* Progress Bar with custom goal */}
                         <ProgressBar
                             champion={user.champion}
                             category={user.category}
                             totalKm={totalKm}
+                            customGoal={customGoal}
+                            editingGoal={editingGoal}
+                            goalInput={goalInput}
+                            onEditGoal={() => {
+                                setEditingGoal(true)
+                                setGoalInput(customGoal?.toString() || CATEGORIES[user.category]?.goal?.toString() || '50')
+                            }}
+                            onGoalInputChange={setGoalInput}
+                            onSaveGoal={handleSaveGoal}
+                            onResetGoal={handleResetGoal}
+                            onCancelEdit={() => { setEditingGoal(false); setGoalInput('') }}
                         />
 
+                        {/* Stats Card */}
+                        <StatsCard activities={currentMonthActivities} />
+
                         {/* Calendar */}
-                        <Calendar activities={activities} />
+                        <Calendar activities={currentMonthActivities} />
 
                         {/* Activity Log */}
                         <ActivityLog
-                            activities={activities}
+                            activities={currentMonthActivities}
                             onAdd={handleAddActivity}
                             onDelete={handleDeleteActivity}
                             loading={loading}

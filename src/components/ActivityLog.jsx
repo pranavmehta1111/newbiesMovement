@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 export default function ActivityLog({ activities, onAdd, onDelete, loading }) {
     const [distance, setDistance] = useState('')
@@ -6,6 +6,20 @@ export default function ActivityLog({ activities, onAdd, onDelete, loading }) {
     const [error, setError] = useState('')
     const [submitting, setSubmitting] = useState(false)
     const [deleting, setDeleting] = useState(null)
+
+    // Compute current month bounds dynamically
+    const { minDate, maxDate, currentMonthPrefix } = useMemo(() => {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = now.getMonth() // 0-indexed
+        const daysInMonth = new Date(year, month + 1, 0).getDate()
+        const prefix = `${year}-${String(month + 1).padStart(2, '0')}`
+        return {
+            minDate: `${prefix}-01`,
+            maxDate: `${prefix}-${String(daysInMonth).padStart(2, '0')}`,
+            currentMonthPrefix: prefix,
+        }
+    }, [])
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -21,9 +35,10 @@ export default function ActivityLog({ activities, onAdd, onDelete, loading }) {
             return
         }
 
-        // Validate date is in February 2026
-        if (!date.startsWith('2026-02')) {
-            setError('Date must be in February 2026')
+        // Validate date is in the current month
+        if (!date.startsWith(currentMonthPrefix)) {
+            const monthName = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' })
+            setError(`Date must be in ${monthName}`)
             return
         }
 
@@ -89,8 +104,8 @@ export default function ActivityLog({ activities, onAdd, onDelete, loading }) {
                                 className="input"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                min="2026-02-01"
-                                max="2026-02-28"
+                                min={minDate}
+                                max={maxDate}
                             />
                         </div>
                     </div>
