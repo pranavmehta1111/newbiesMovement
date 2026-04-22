@@ -1,244 +1,138 @@
 import { useState, useEffect } from 'react'
-import { CATEGORIES, getAllUsers, updateUserCategory, deleteUser, DELETE_PHONE, resetAllActivities, getCurrentMonthLabel } from '../lib/supabase'
+import {
+    CHALLENGE_LEVELS,
+    DELETE_PHONE,
+    getAllUsers,
+    updateUserLevel,
+    deleteUser,
+    resetAllData,
+} from '../lib/supabase'
 
-export default function AdminPanel({ currentPhone }) {
-    const canDelete = currentPhone === DELETE_PHONE
+const levels = Object.values(CHALLENGE_LEVELS)
+
+export default function AdminPanel({ currentUser, onDataChange }) {
     const [users, setUsers] = useState([])
     const [loading, setLoading] = useState(true)
-    const [updating, setUpdating] = useState(null)
-    const [deleting, setDeleting] = useState(null)
-    const [confirmDelete, setConfirmDelete] = useState(null)
     const [confirmReset, setConfirmReset] = useState(false)
-    const [resetting, setResetting] = useState(false)
-    const [search, setSearch] = useState('')
+    const [message, setMessage] = useState('')
+
+    const canDelete = currentUser.phone === DELETE_PHONE
 
     useEffect(() => {
-        fetchUsers()
+        loadUsers()
     }, [])
 
-    const fetchUsers = async () => {
+    const loadUsers = async () => {
         setLoading(true)
-        const data = await getAllUsers()
-        setUsers(data)
-        setLoading(false)
-    }
-
-    const handleCategoryChange = async (userId, newCategory) => {
-        setUpdating(userId)
         try {
-            await updateUserCategory(userId, newCategory)
-            setUsers(users.map(u =>
-                u.id === userId ? { ...u, category: newCategory } : u
-            ))
+            const data = await getAllUsers()
+            setUsers(data)
         } catch (err) {
-            alert('Failed to update category: ' + err.message)
+            console.error(err)
         } finally {
-            setUpdating(null)
+            setLoading(false)
         }
     }
 
-    const handleDeleteUser = async (userId) => {
-        setDeleting(userId)
+    const handleLevelChange = async (userId, newLevel) => {
+        try {
+            await updateUserLevel(userId, newLevel)
+            setMessage('Level updated!')
+            await loadUsers()
+            onDataChange()
+            setTimeout(() => setMessage(''), 2000)
+        } catch (err) {
+            setMessage('Error: ' + err.message)
+        }
+    }
+
+    const handleDelete = async (userId, userName) => {
+        if (!window.confirm(`Delete user "${userName}"? This will remove all their data.`)) return
         try {
             await deleteUser(userId)
-            setUsers(users.filter(u => u.id !== userId))
+            setMessage(`${userName} deleted`)
+            await loadUsers()
+            setTimeout(() => setMessage(''), 2000)
         } catch (err) {
-            alert('Failed to delete user: ' + err.message)
-        } finally {
-            setDeleting(null)
-            setConfirmDelete(null)
+            setMessage('Error: ' + err.message)
         }
     }
 
-    const handleMonthlyReset = async () => {
-        setResetting(true)
+    const handleReset = async () => {
+        if (!confirmReset) {
+            setConfirmReset(true)
+            return
+        }
         try {
-            await resetAllActivities()
-            alert('All activities have been reset! 🔄')
-        } catch (err) {
-            alert('Failed to reset: ' + err.message)
-        } finally {
-            setResetting(false)
+            await resetAllData()
+            setMessage('All daily logs have been reset!')
             setConfirmReset(false)
+            onDataChange()
+            setTimeout(() => setMessage(''), 3000)
+        } catch (err) {
+            setMessage('Error: ' + err.message)
         }
     }
-
-    const filteredUsers = users.filter(u =>
-        u.name?.toLowerCase().includes(search.toLowerCase()) ||
-        u.phone?.includes(search)
-    )
 
     return (
-        <div className="card">
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg">Admin Panel 🔧</h3>
-                <span className="px-2 py-1 text-xs font-medium bg-[color:var(--warning)]/20 text-[color:var(--warning)] rounded">
-                    Admin Only
-                </span>
-            </div>
+        <div className="card fade-in">
+            <h2 className="text-lg font-extrabold mb-4">⚙️ Admin Panel</h2>
 
-            <p className="text-sm text-[color:var(--text-secondary)] mb-4">
-                Change any user's category or delete users as needed.
-            </p>
-
-            {/* Monthly Reset Section */}
-            <div className="p-4 rounded-xl bg-[color:var(--danger)]/5 border border-[color:var(--danger)]/20 mb-4">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h4 className="font-medium text-sm">Monthly Reset</h4>
-                        <p className="text-xs text-[color:var(--text-muted)] mt-1">
-                            Clear all activity data for a fresh start — {getCurrentMonthLabel()}
-                        </p>
-                    </div>
-                    <button
-                        onClick={() => setConfirmReset(true)}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[color:var(--danger)]/10 text-[color:var(--danger)] hover:bg-[color:var(--danger)]/20 transition-colors"
-                    >
-                        🔄 Reset
-                    </button>
+            {message && (
+                <div className="p-3 rounded-xl mb-4 text-sm font-semibold text-center fade-in"
+                    style={{ background: 'var(--accent-glow)', color: 'var(--accent)' }}>
+                    {message}
                 </div>
+            )}
+
+            {/* Reset button */}
+            <div className="mb-5 p-4 rounded-xl" style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                <h3 className="font-bold text-sm mb-2 text-[color:var(--danger)]">🗑️ Reset All Daily Logs</h3>
+                <p className="text-xs text-[color:var(--text-muted)] mb-3">This will delete all check-in data for all users. Users themselves are not deleted.</p>
+                <button onClick={handleReset} className="btn-danger text-sm" id="reset-btn">
+                    {confirmReset ? '⚠️ Click again to confirm reset' : 'Reset All Data'}
+                </button>
+                {confirmReset && (
+                    <button onClick={() => setConfirmReset(false)} className="btn-secondary text-sm ml-2">Cancel</button>
+                )}
             </div>
 
-            {/* Search */}
-            <input
-                type="text"
-                className="input mb-4"
-                placeholder="Search by name or phone..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-            />
+            {/* Users list */}
+            <h3 className="font-bold text-sm mb-3">
+                All Users ({users.length})
+            </h3>
 
             {loading ? (
-                <div className="flex justify-center py-8">
-                    <div className="spinner"></div>
+                <div className="text-center py-4">
+                    <div className="spinner mx-auto"></div>
                 </div>
             ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {filteredUsers.map(user => (
-                        <div
-                            key={user.id}
-                            className="flex items-center gap-3 p-3 rounded-lg bg-[color:var(--bg-secondary)]"
-                        >
+                <div className="space-y-2">
+                    {users.map(u => (
+                        <div key={u.id} className="flex items-center gap-2 p-3 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
                             <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{user.name}</p>
-                                <p className="text-xs text-[color:var(--text-muted)]">{user.phone}</p>
+                                <div className="font-semibold text-sm truncate">{u.name}</div>
+                                <div className="text-xs text-[color:var(--text-muted)]">{u.phone}</div>
                             </div>
-
                             <select
-                                className="select py-2 px-3 w-auto min-w-[140px]"
-                                value={user.category}
-                                onChange={(e) => handleCategoryChange(user.id, e.target.value)}
-                                disabled={updating === user.id || deleting === user.id}
+                                value={u.challenge_level}
+                                onChange={(e) => handleLevelChange(u.id, e.target.value)}
+                                className="text-xs p-1.5 rounded-lg bg-[color:var(--bg-card-solid)] border border-[color:var(--border)] text-[color:var(--text-primary)] cursor-pointer"
                             >
-                                {Object.entries(CATEGORIES).map(([key, { name }]) => (
-                                    <option key={key} value={key}>{name}</option>
+                                {levels.map(l => (
+                                    <option key={l.id} value={l.id}>{l.icon} {l.name}</option>
                                 ))}
                             </select>
-
-                            {/* Delete button - only for DELETE_PHONE */}
-                            {canDelete && (
+                            {canDelete && u.id !== currentUser.id && (
                                 <button
-                                    onClick={() => setConfirmDelete(user)}
-                                    disabled={deleting === user.id}
-                                    className="p-2 rounded-lg text-[color:var(--text-muted)] hover:text-[color:var(--danger)] hover:bg-[color:var(--danger)]/10 transition-colors"
-                                    title="Delete user"
+                                    onClick={() => handleDelete(u.id, u.name)}
+                                    className="text-xs text-[color:var(--danger)] font-semibold hover:underline cursor-pointer bg-transparent border-none"
                                 >
-                                    {deleting === user.id ? (
-                                        <div className="spinner w-4 h-4 border-2"></div>
-                                    ) : (
-                                        '🗑️'
-                                    )}
+                                    ✕
                                 </button>
-                            )}
-
-                            {updating === user.id && (
-                                <div className="spinner w-5 h-5 border-2"></div>
                             )}
                         </div>
                     ))}
-
-                    {filteredUsers.length === 0 && (
-                        <p className="text-center text-[color:var(--text-muted)] py-4">
-                            No users found
-                        </p>
-                    )}
-                </div>
-            )}
-
-            <button
-                onClick={fetchUsers}
-                className="btn-secondary w-full mt-4"
-            >
-                Refresh List
-            </button>
-
-            {/* Delete Confirmation Modal */}
-            {confirmDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="card w-full max-w-sm fade-in text-center">
-                        <div className="text-4xl mb-3">⚠️</div>
-                        <h4 className="font-semibold text-lg mb-2">Delete User?</h4>
-                        <p className="text-sm text-[color:var(--text-secondary)] mb-1">
-                            Are you sure you want to delete
-                        </p>
-                        <p className="font-semibold text-[color:var(--danger)] mb-1">
-                            {confirmDelete.name}
-                        </p>
-                        <p className="text-xs text-[color:var(--text-muted)] mb-4">
-                            ({confirmDelete.phone})
-                        </p>
-                        <p className="text-xs text-[color:var(--text-muted)] mb-6">
-                            This will permanently delete the user and all their activity data. This action cannot be undone.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setConfirmDelete(null)}
-                                className="btn-secondary flex-1"
-                                disabled={deleting}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={() => handleDeleteUser(confirmDelete.id)}
-                                disabled={deleting}
-                                className="flex-1 py-2 px-4 rounded-xl font-medium transition-all bg-[color:var(--danger)] text-white hover:opacity-90 disabled:opacity-50"
-                            >
-                                {deleting ? 'Deleting...' : 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Monthly Reset Confirmation Modal */}
-            {confirmReset && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="card w-full max-w-sm fade-in text-center">
-                        <div className="text-4xl mb-3">🔄</div>
-                        <h4 className="font-semibold text-lg mb-2">Monthly Reset</h4>
-                        <p className="text-sm text-[color:var(--text-secondary)] mb-4">
-                            This will <span className="font-bold text-[color:var(--danger)]">permanently delete ALL activity data</span> for every user. This is intended for starting a fresh month.
-                        </p>
-                        <p className="text-xs text-[color:var(--text-muted)] mb-6">
-                            ⚠️ This action cannot be undone. User profiles will remain intact.
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={() => setConfirmReset(false)}
-                                className="btn-secondary flex-1"
-                                disabled={resetting}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleMonthlyReset}
-                                disabled={resetting}
-                                className="flex-1 py-2 px-4 rounded-xl font-medium transition-all bg-[color:var(--danger)] text-white hover:opacity-90 disabled:opacity-50"
-                            >
-                                {resetting ? 'Resetting...' : 'Reset All Data'}
-                            </button>
-                        </div>
-                    </div>
                 </div>
             )}
         </div>

@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard'
 import { getUserByPhone, createUser, isSupabaseConfigured, getCurrentMonthLabel } from './lib/supabase'
 import './index.css'
 
-const STORAGE_KEY = 'newbies_challenge_phone'
+const STORAGE_KEY = 'newbies_wellness_phone'
 
 function App() {
   const [appState, setAppState] = useState('loading') // loading, login, onboarding, dashboard, setup
@@ -30,7 +30,6 @@ function App() {
 
   // Check for saved phone on mount
   useEffect(() => {
-    // Check if Supabase is configured
     if (!isSupabaseConfigured) {
       setAppState('setup')
       return
@@ -70,8 +69,7 @@ function App() {
     const newUser = await createUser({
       phone,
       name: userData.name,
-      category: userData.category,
-      champion: userData.champion,
+      challenge_level: userData.challenge_level,
     })
     setUser(newUser)
     setAppState('dashboard')
@@ -111,18 +109,19 @@ function App() {
         >
           {darkMode ? '☀️' : '🌙'}
         </button>
-        <div className="card w-full max-w-lg fade-in">
+        <div className="card w-full max-w-lg fade-in-up">
           <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold mb-2">
-              <span className="bg-gradient-to-r from-indigo-500 to-purple-500 dark:from-green-400 dark:to-emerald-500 bg-clip-text text-transparent">
-                The Newbies Movement
+            <div className="text-5xl mb-3">🌿</div>
+            <h1 className="text-3xl font-extrabold mb-2">
+              <span className="bg-gradient-to-r from-emerald-500 to-teal-400 bg-clip-text text-transparent">
+                Newbies Wellness
               </span>
             </h1>
-            <p className="text-[color:var(--text-secondary)]">{getCurrentMonthLabel()} • Let's Move Together! 🏃‍♂️</p>
+            <p className="text-[color:var(--text-secondary)] text-sm">{getCurrentMonthLabel()} • Health Challenge</p>
           </div>
 
-          <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 mb-6">
-            <h2 className="font-semibold text-amber-600 dark:text-amber-400 mb-2">⚠️ Setup Required</h2>
+          <div className="p-4 rounded-xl mb-6" style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
+            <h2 className="font-bold text-amber-600 dark:text-amber-400 mb-2">⚠️ Setup Required</h2>
             <p className="text-sm text-[color:var(--text-secondary)] mb-4">
               To use this app, you need to configure Supabase for the database.
             </p>
@@ -167,11 +166,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key`}
 
       {/* Main content based on state */}
       {appState === 'login' && (
-        <PhoneLogin
-          onLogin={handleLogin}
-          onLogout={handleLogout}
-          savedPhone={phone}
-        />
+        <PhoneLogin onLogin={handleLogin} />
       )}
 
       {appState === 'onboarding' && (

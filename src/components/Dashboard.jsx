@@ -1,232 +1,245 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import ProgressBar from './ProgressBar'
+import { useState, useEffect, useCallback } from 'react'
+import ProgressRings from './ProgressRings'
+import DailyCheckin from './DailyCheckin'
 import Calendar from './Calendar'
-import ActivityLog from './ActivityLog'
 import Leaderboard from './Leaderboard'
-import AdminPanel from './AdminPanel'
 import StatsCard from './StatsCard'
-import MotivationalBanner from './MotivationalBanner'
-import { getActivities, addActivity, deleteActivity, ADMIN_PHONES, CATEGORIES, getCurrentMonthLabel, getCurrentMonthRange, supabase } from '../lib/supabase'
+import AdminPanel from './AdminPanel'
+import {
+    CHALLENGE_LEVELS,
+    ADMIN_PHONES,
+    getDailyLogs,
+    getLogForDate,
+    upsertDailyLog,
+    getCurrentDateString,
+    getCurrentMonthLabel,
+    checkDayCompletion,
+} from '../lib/supabase'
 
-const LEADERBOARD_KEY = 'newbies_show_leaderboard'
-const CUSTOM_GOAL_KEY = 'newbies_custom_goal'
+const QUOTES = [
+    "Small daily improvements lead to stunning results. 🌱",
+    "Your body is a temple — treat it with respect. 💚",
+    "Discipline is choosing between what you want now and what you want most. ⚡",
+    "Hydrate, move, repeat. You've got this! 💧",
+    "Every step counts, every glass matters. 🚶",
+]
 
 export default function Dashboard({ user, onLogout }) {
-    const [activities, setActivities] = useState([])
+    const [logs, setLogs] = useState([])
+    const [todayLog, setTodayLog] = useState(null)
+    const [showCheckin, setShowCheckin] = useState(false)
+    const [checkinDate, setCheckinDate] = useState(getCurrentDateString())
+    const [checkinLog, setCheckinLog] = useState(null)
+    const [activeTab, setActiveTab] = useState('home') // home, calendar, leaderboard, stats
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState('dashboard')
-    const [showAdmin, setShowAdmin] = useState(false)
+    const [quote] = useState(QUOTES[Math.floor(Math.random() * QUOTES.length)])
 
-    // Leaderboard toggle — persisted in localStorage
-    const [showLeaderboard, setShowLeaderboard] = useState(() => {
-        const saved = localStorage.getItem(LEADERBOARD_KEY)
-        return saved !== null ? JSON.parse(saved) : true
-    })
-
-    // Custom goal — persisted in localStorage per user
-    const [customGoal, setCustomGoal] = useState(() => {
-        const saved = localStorage.getItem(`${CUSTOM_GOAL_KEY}_${user.phone}`)
-        return saved ? parseFloat(saved) : null
-    })
-    const [editingGoal, setEditingGoal] = useState(false)
-    const [goalInput, setGoalInput] = useState('')
-
+    const levelConfig = CHALLENGE_LEVELS[user.challenge_level]
     const isAdmin = ADMIN_PHONES.includes(user.phone)
-    const monthLabel = getCurrentMonthLabel()
 
-    // Filter activities to current month
-    const currentMonthActivities = useMemo(() => {
-        const { firstDay, lastDay } = getCurrentMonthRange()
-        return activities.filter(a => a.logged_at >= firstDay && a.logged_at <= lastDay)
-    }, [activities])
-
-    const totalKm = currentMonthActivities.reduce((sum, a) => sum + parseFloat(a.distance_km), 0)
-    const effectiveGoal = customGoal || CATEGORIES[user.category]?.goal || 50
-
-    // Persist leaderboard toggle
-    useEffect(() => {
-        localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(showLeaderboard))
-        // If leaderboard hidden and currently on leaderboard tab, switch back
-        if (!showLeaderboard && activeTab === 'leaderboard') {
-            setActiveTab('dashboard')
-        }
-    }, [showLeaderboard])
-
-    const fetchActivities = useCallback(async () => {
+    const loadData = useCallback(async () => {
         setLoading(true)
-        const data = await getActivities(user.id)
-        setActivities(data)
-        setLoading(false)
+        try {
+            const allLogs = await getDailyLogs(user.id)
+            setLogs(allLogs)
+            const today = getCurrentDateString()
+            const tLog = allLogs.find(l => l.log_date === today) || null
+            setTodayLog(tLog)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setLoading(false)
+        }
     }, [user.id])
 
     useEffect(() => {
-        fetchActivities()
+        loadData()
+    }, [loadData])
 
-        // Real-time subscription for user's activities
-        const channel = supabase
-            .channel(`activities-${user.id}`)
-            .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'activities', filter: `user_id=eq.${user.id}` },
-                () => fetchActivities()
-            )
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
-        }
-    }, [user.id, fetchActivities])
-
-    const handleAddActivity = async (distanceKm, loggedAt) => {
-        await addActivity(user.id, distanceKm, loggedAt)
-        await fetchActivities()
+    const handleCheckin = async (logData) => {
+        const result = await upsertDailyLog(user.id, {
+            log_date: checkinDate,
+            ...logData
+        })
+        await loadData()
+        setShowCheckin(false)
+        return result
     }
 
-    const handleDeleteActivity = async (activityId) => {
-        await deleteActivity(activityId)
-        await fetchActivities()
+    const openCheckinForDate = async (dateStr) => {
+        setCheckinDate(dateStr)
+        const log = await getLogForDate(user.id, dateStr)
+        setCheckinLog(log)
+        setShowCheckin(true)
     }
 
-    const handleSaveGoal = () => {
-        const val = parseFloat(goalInput)
-        if (!isNaN(val) && val > 0 && val <= 1000) {
-            setCustomGoal(val)
-            localStorage.setItem(`${CUSTOM_GOAL_KEY}_${user.phone}`, val.toString())
-        }
-        setEditingGoal(false)
-        setGoalInput('')
+    const openTodayCheckin = () => {
+        const today = getCurrentDateString()
+        setCheckinDate(today)
+        setCheckinLog(todayLog)
+        setShowCheckin(true)
     }
 
-    const handleResetGoal = () => {
-        setCustomGoal(null)
-        localStorage.removeItem(`${CUSTOM_GOAL_KEY}_${user.phone}`)
-        setEditingGoal(false)
-        setGoalInput('')
+    // Calculate stats
+    const todayCompletion = todayLog ? checkDayCompletion(todayLog, levelConfig) : { isComplete: false, metCount: 0 }
+    const completedDays = logs.filter(l => checkDayCompletion(l, levelConfig).isComplete).length
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="spinner mx-auto mb-4"></div>
+                    <p className="text-[color:var(--text-secondary)]">Loading your progress...</p>
+                </div>
+            </div>
+        )
     }
 
     return (
         <div className="min-h-screen pb-20">
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-[color:var(--bg-primary)]/80 backdrop-blur-lg border-b border-[color:var(--border)]">
-                <div className="max-w-2xl mx-auto px-4 py-4">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h1 className="font-bold text-lg">
-                                Hey, {user.name}! 👋
-                            </h1>
-                            <p className="text-sm text-[color:var(--text-secondary)]">
-                                {monthLabel} • Let's Move! 🏃‍♂️
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {isAdmin && (
-                                <button
-                                    onClick={() => setShowAdmin(!showAdmin)}
-                                    className={`p-2 rounded-lg transition-colors ${showAdmin ? 'bg-[color:var(--warning)]/20 text-[color:var(--warning)]' : 'text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]'}`}
-                                    title="Admin Panel"
-                                >
-                                    ⚙️
-                                </button>
-                            )}
+            <div className="max-w-xl mx-auto px-4 pt-5 pb-3">
+                <div className="flex items-center justify-between mb-4">
+                    <div>
+                        <h1 className="text-xl font-extrabold">
+                            Hey, {user.name}! <span className="wave">👋</span>
+                        </h1>
+                        <p className="text-xs text-[color:var(--text-secondary)] mt-0.5">
+                            {getCurrentMonthLabel()} • {levelConfig.icon} {levelConfig.name}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="level-badge">{levelConfig.icon} {levelConfig.name}</span>
+                    </div>
+                </div>
+
+                {/* Motivational quote */}
+                <div className="card p-3 mb-4 fade-in" style={{ background: 'linear-gradient(135deg, var(--accent-glow), transparent)', border: '1px solid var(--accent)', borderColor: 'var(--accent)' }}>
+                    <p className="text-sm font-medium text-center" style={{ color: 'var(--accent)' }}>
+                        {quote}
+                    </p>
+                </div>
+            </div>
+
+            {/* Navigation tabs */}
+            <div className="max-w-xl mx-auto px-4 mb-4">
+                <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                    {[
+                        { id: 'home', label: '🏠 Home' },
+                        { id: 'calendar', label: '📅 Calendar' },
+                        { id: 'leaderboard', label: '🏆 Leaderboard' },
+                        { id: 'stats', label: '📊 Stats' },
+                        ...(isAdmin ? [{ id: 'admin', label: '⚙️ Admin' }] : []),
+                    ].map(t => (
+                        <button
+                            key={t.id}
+                            onClick={() => setActiveTab(t.id)}
+                            className={`tab ${activeTab === t.id ? 'active' : ''}`}
+                            id={`tab-${t.id}`}
+                        >
+                            {t.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Content */}
+            <div className="max-w-xl mx-auto px-4">
+                {activeTab === 'home' && (
+                    <div className="space-y-4 fade-in">
+                        {/* Today's Progress Rings */}
+                        <div className="card">
+                            <h2 className="text-sm font-bold text-center mb-4 text-[color:var(--text-secondary)]">
+                                TODAY'S PROGRESS
+                            </h2>
+                            <ProgressRings
+                                sugarMet={todayLog?.sugar_rule_met || false}
+                                waterLiters={todayLog?.water_liters || 0}
+                                waterTarget={levelConfig.water}
+                                steps={todayLog?.steps || 0}
+                                stepsTarget={levelConfig.steps}
+                            />
+
+                            {/* Completion status */}
+                            <div className="text-center mt-4">
+                                {todayCompletion.isComplete ? (
+                                    <p className="text-sm font-bold text-[color:var(--success)] fade-in">
+                                        🎉 All targets met today! You're amazing!
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-[color:var(--text-muted)]">
+                                        {todayCompletion.metCount}/3 targets met today
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Check-in button */}
                             <button
-                                onClick={onLogout}
-                                className="text-sm text-[color:var(--text-muted)] hover:text-[color:var(--danger)] transition-colors"
+                                onClick={openTodayCheckin}
+                                className="btn-primary w-full mt-4"
+                                id="checkin-btn"
                             >
-                                Logout
+                                {todayLog ? 'Update Today\'s Check-in ✏️' : 'Log Today\'s Check-in ✨'}
+                            </button>
+                        </div>
+
+                        {/* Quick stats */}
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="card text-center p-3">
+                                <div className="text-2xl font-extrabold text-[color:var(--accent)]">{completedDays}</div>
+                                <div className="text-xs text-[color:var(--text-muted)] mt-0.5">Days Complete</div>
+                            </div>
+                            <div className="card text-center p-3">
+                                <div className="text-2xl font-extrabold text-[color:var(--accent)]">{logs.length}</div>
+                                <div className="text-xs text-[color:var(--text-muted)] mt-0.5">Days Logged</div>
+                            </div>
+                            <div className="card text-center p-3">
+                                <div className="text-2xl font-extrabold text-[color:var(--accent)]">
+                                    {logs.length > 0 ? Math.round((completedDays / logs.length) * 100) : 0}%
+                                </div>
+                                <div className="text-xs text-[color:var(--text-muted)] mt-0.5">Success Rate</div>
+                            </div>
+                        </div>
+
+                        {/* Logout */}
+                        <div className="text-center pt-2">
+                            <button onClick={onLogout} className="btn-secondary text-sm" id="logout-btn">
+                                Sign Out
                             </button>
                         </div>
                     </div>
-
-                    {/* Leaderboard toggle */}
-                    <div className="flex items-center justify-between mt-3 pt-3 border-t border-[color:var(--border)]">
-                        <span className="text-xs text-[color:var(--text-muted)]">Show Leaderboard</span>
-                        <label className="toggle-switch">
-                            <input
-                                type="checkbox"
-                                checked={showLeaderboard}
-                                onChange={(e) => setShowLeaderboard(e.target.checked)}
-                            />
-                            <span className="toggle-slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </header>
-
-            {/* Main content */}
-            <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-                {/* Admin panel (if admin and toggled) */}
-                {isAdmin && showAdmin && (
-                    <div className="fade-in">
-                        <AdminPanel currentPhone={user.phone} />
-                    </div>
                 )}
 
-                {/* Tab navigation (only show if leaderboard is enabled) */}
-                {showLeaderboard && (
-                    <div className="flex gap-2 bg-[color:var(--bg-secondary)] p-1 rounded-xl">
-                        <button
-                            onClick={() => setActiveTab('dashboard')}
-                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'dashboard'
-                                ? 'bg-[color:var(--bg-card)] shadow-sm'
-                                : 'text-[color:var(--text-secondary)]'
-                                }`}
-                        >
-                            Dashboard
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('leaderboard')}
-                            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${activeTab === 'leaderboard'
-                                ? 'bg-[color:var(--bg-card)] shadow-sm'
-                                : 'text-[color:var(--text-secondary)]'
-                                }`}
-                        >
-                            Leaderboard
-                        </button>
-                    </div>
+                {activeTab === 'calendar' && (
+                    <Calendar
+                        logs={logs}
+                        levelConfig={levelConfig}
+                        onDayClick={openCheckinForDate}
+                    />
                 )}
 
-                {(activeTab === 'dashboard' || !showLeaderboard) ? (
-                    <div className="space-y-6 fade-in">
-                        {/* Motivational Banner */}
-                        <MotivationalBanner />
-
-                        {/* Progress Bar with custom goal */}
-                        <ProgressBar
-                            champion={user.champion}
-                            category={user.category}
-                            totalKm={totalKm}
-                            customGoal={customGoal}
-                            editingGoal={editingGoal}
-                            goalInput={goalInput}
-                            onEditGoal={() => {
-                                setEditingGoal(true)
-                                setGoalInput(customGoal?.toString() || CATEGORIES[user.category]?.goal?.toString() || '50')
-                            }}
-                            onGoalInputChange={setGoalInput}
-                            onSaveGoal={handleSaveGoal}
-                            onResetGoal={handleResetGoal}
-                            onCancelEdit={() => { setEditingGoal(false); setGoalInput('') }}
-                        />
-
-                        {/* Stats Card */}
-                        <StatsCard activities={currentMonthActivities} />
-
-                        {/* Calendar */}
-                        <Calendar activities={currentMonthActivities} />
-
-                        {/* Activity Log */}
-                        <ActivityLog
-                            activities={currentMonthActivities}
-                            onAdd={handleAddActivity}
-                            onDelete={handleDeleteActivity}
-                            loading={loading}
-                        />
-                    </div>
-                ) : (
-                    <div className="fade-in">
-                        <Leaderboard userCategory={user.category} userId={user.id} />
-                    </div>
+                {activeTab === 'leaderboard' && (
+                    <Leaderboard currentLevel={user.challenge_level} />
                 )}
-            </main>
+
+                {activeTab === 'stats' && (
+                    <StatsCard logs={logs} levelConfig={levelConfig} />
+                )}
+
+                {activeTab === 'admin' && isAdmin && (
+                    <AdminPanel currentUser={user} onDataChange={loadData} />
+                )}
+            </div>
+
+            {/* Daily Checkin Modal */}
+            {showCheckin && (
+                <DailyCheckin
+                    currentLog={checkinLog}
+                    levelConfig={levelConfig}
+                    onSave={handleCheckin}
+                    onClose={() => setShowCheckin(false)}
+                />
+            )}
         </div>
     )
 }

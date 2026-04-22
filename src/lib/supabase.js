@@ -13,55 +13,26 @@ export const supabase = isSupabaseConfigured
     ? createClient(supabaseUrl, supabaseAnonKey)
     : null
 
-// Admin phone numbers (can edit any user's category)
+// Admin phone numbers (can edit any user's level)
 export const ADMIN_PHONES = [
-    '9314422001', // Pranav - Replace with actual number
-    '7349327332', // Sudha - Replace with actual number  
+    '9314422001', // Pranav
+    '7349327332', // Sudha
     '8197898805',
     '9944069451',
     '9380936622',
-    '9779497219', // Ujjwal - Replace with actual number
+    '9779497219', // Ujjwal
 ]
 
 // Phone number with delete user permission
 export const DELETE_PHONE = '9887922770'
 
-// Category goals in kilometers
-export const CATEGORIES = {
-    underdog: { name: 'The resting Underdog', goal: 25 },
-    normie: { name: 'The cool Normie', goal: 50 },
-    rockstar: { name: 'The future Rockstar', goal: 75 },
-    superhuman: { name: 'The Superhuman', goal: 100 },
-    titan: { name: 'The Titan', goal: 200 },
-}
-
-// Champion emojis and growth stages
-export const CHAMPIONS = {
-    puppy: {
-        name: 'Puppy',
-        stages: { baby: '🐶', teen: '🐕', adult: '🦮' }
-    },
-    kitten: {
-        name: 'Kitten',
-        stages: { baby: '🐱', teen: '🐈', adult: '🐈‍⬛' }
-    },
-    bird: {
-        name: 'Bird',
-        stages: { baby: '🐣', teen: '🐤', adult: '🐦' }
-    }
-}
-
-// Get growth stage based on progress percentage
-export function getGrowthStage(percentage) {
-    if (percentage <= 40) return 'baby'
-    if (percentage <= 80) return 'teen'
-    return 'adult'
-}
-
-// Get champion emoji for current progress
-export function getChampionEmoji(champion, percentage) {
-    const stage = getGrowthStage(percentage)
-    return CHAMPIONS[champion]?.stages[stage] || '❓'
+// Challenge levels
+export const CHALLENGE_LEVELS = {
+    seedling: { id: 'seedling', name: 'Seedling', icon: '🌱', sugar: true, water: 2.0, steps: 5000 },
+    sprout: { id: 'sprout', name: 'Sprout', icon: '🌿', sugar: true, water: 2.5, steps: 7000 },
+    grower: { id: 'grower', name: 'Grower', icon: '🌳', sugar: true, water: 3.0, steps: 9000 },
+    beast: { id: 'beast', name: 'Beast', icon: '⚡', sugar: true, water: 3.5, steps: 11000 },
+    legend: { id: 'legend', name: 'Legend', icon: '🔥', sugar: true, water: 3.5, steps: 12000 },
 }
 
 // Database helper functions
@@ -96,12 +67,12 @@ export async function createUser(userData) {
     return data
 }
 
-export async function updateUserCategory(userId, category) {
+export async function updateUserLevel(userId, challenge_level) {
     if (!supabase) throw new Error('Database not configured')
 
     const { data, error } = await supabase
         .from('users')
-        .update({ category })
+        .update({ challenge_level })
         .eq('id', userId)
         .select()
         .single()
@@ -111,52 +82,6 @@ export async function updateUserCategory(userId, category) {
         throw error
     }
     return data
-}
-
-export async function getActivities(userId) {
-    if (!supabase) return []
-
-    const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .eq('user_id', userId)
-        .order('logged_at', { ascending: false })
-
-    if (error) {
-        console.error('Error fetching activities:', error)
-        return []
-    }
-    return data
-}
-
-export async function addActivity(userId, distanceKm, loggedAt) {
-    if (!supabase) throw new Error('Database not configured')
-
-    const { data, error } = await supabase
-        .from('activities')
-        .insert([{ user_id: userId, distance_km: distanceKm, logged_at: loggedAt }])
-        .select()
-        .single()
-
-    if (error) {
-        console.error('Error adding activity:', error)
-        throw error
-    }
-    return data
-}
-
-export async function deleteActivity(activityId) {
-    if (!supabase) throw new Error('Database not configured')
-
-    const { error } = await supabase
-        .from('activities')
-        .delete()
-        .eq('id', activityId)
-
-    if (error) {
-        console.error('Error deleting activity:', error)
-        throw error
-    }
 }
 
 export async function deleteUser(userId) {
@@ -173,31 +98,115 @@ export async function deleteUser(userId) {
     }
 }
 
-export async function getLeaderboardByCategory(category) {
+export async function getDailyLogs(userId) {
+    if (!supabase) return []
+
+    const { data, error } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .order('log_date', { ascending: false })
+
+    if (error) {
+        console.error('Error fetching logs:', error)
+        return []
+    }
+    return data
+}
+
+export async function getLogForDate(userId, dateString) {
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('log_date', dateString)
+        .single();
+
+    if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching log:', error);
+    }
+    return data;
+}
+
+export async function upsertDailyLog(userId, logData) {
+    if (!supabase) throw new Error('Database not configured')
+
+    // Find if it exists to get ID if we need it, but Supabase handles upsert via unique constraints
+    // Our schema has a unique constraint on (user_id, log_date)
+    const { data, error } = await supabase
+        .from('daily_logs')
+        .upsert([{
+            user_id: userId,
+            ...logData
+        }], { onConflict: 'user_id,log_date' })
+        .select()
+        .single()
+
+    if (error) {
+        console.error('Error upserting log:', error)
+        throw error
+    }
+    return data
+}
+
+export function checkDayCompletion(log, levelConfig) {
+    if (!log || !levelConfig) return { isComplete: false, metCount: 0 };
+
+    let metCount = 0;
+    if (log.sugar_rule_met) metCount++;
+    if (log.water_liters >= levelConfig.water) metCount++;
+    if (log.steps >= levelConfig.steps) metCount++;
+
+    return {
+        isComplete: metCount === 3,
+        metCount
+    };
+}
+
+export async function getLeaderboardByLevel(levelId) {
     if (!supabase) return []
 
     const { data: users, error } = await supabase
         .from('users')
         .select(`
-      id,
-      name,
-      champion,
-      category,
-      activities (distance_km, logged_at)
-    `)
-        .eq('category', category)
+            id,
+            name,
+            challenge_level,
+            daily_logs (log_date, sugar_rule_met, water_liters, steps)
+        `)
+        .eq('challenge_level', levelId)
 
     if (error) {
         console.error('Error fetching leaderboard:', error)
         return []
     }
 
-    // Calculate totals and streaks, then filter out users with 0km
+    const levelConfig = CHALLENGE_LEVELS[levelId];
+
+    // Calculate scores (days totally completed) and current streak
     return users.map(user => {
-        const totalKm = user.activities?.reduce((sum, a) => sum + parseFloat(a.distance_km), 0) || 0
-        const streak = calculateStreak(user.activities || [])
-        return { ...user, totalKm, streak }
-    }).filter(user => user.totalKm > 0).sort((a, b) => b.totalKm - a.totalKm)
+        let completedDays = 0;
+        const validLogs = user.daily_logs || [];
+
+        validLogs.forEach(log => {
+            const { isComplete } = checkDayCompletion(log, levelConfig);
+            if (isComplete) completedDays++;
+        });
+
+        const streak = calculateStreak(validLogs, levelConfig);
+
+        return {
+            ...user,
+            score: completedDays,
+            streak,
+            totalLogs: validLogs.length
+        }
+    })
+        // Only show people who have started
+        .filter(u => u.totalLogs > 0)
+        .sort((a, b) => b.score - a.score || b.streak - a.streak)
 }
 
 export async function getAllUsers() {
@@ -205,7 +214,7 @@ export async function getAllUsers() {
 
     const { data, error } = await supabase
         .from('users')
-        .select('id, name, phone, category, champion')
+        .select('id, name, phone, challenge_level')
         .order('name')
 
     if (error) {
@@ -215,59 +224,68 @@ export async function getAllUsers() {
     return data
 }
 
-// Get current month date range (for filtering)
-export function getCurrentMonthRange() {
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = now.getMonth()
-    const firstDay = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const lastDay = `${year}-${String(month + 1).padStart(2, '0')}-${String(new Date(year, month + 1, 0).getDate()).padStart(2, '0')}`
-    return { firstDay, lastDay }
+export function getCurrentDateString() {
+    // using local time to handle YYYY-MM-DD
+    const d = new Date();
+    const offset = d.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(d - offset)).toISOString().split('T')[0];
+    return localISOTime;
 }
 
-// Get current month label
 export function getCurrentMonthLabel() {
-    const now = new Date()
-    return now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+    return 'May 2026'
 }
 
-// Reset all activities (admin only)
-export async function resetAllActivities() {
+export async function resetAllData() {
     if (!supabase) throw new Error('Database not configured')
 
     const { error } = await supabase
-        .from('activities')
+        .from('daily_logs')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000') // delete all rows
+        .neq('id', '00000000-0000-0000-0000-000000000000')
 
     if (error) {
-        console.error('Error resetting activities:', error)
+        console.error('Error resetting data:', error)
         throw error
     }
 }
 
-function calculateStreak(activities) {
-    if (!activities.length) return 0
+function calculateStreak(logs, levelConfig) {
+    if (!logs || !logs.length) return 0
 
-    const dates = [...new Set(activities.map(a => a.logged_at))].sort().reverse()
-    const today = new Date().toISOString().split('T')[0]
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+    // Sort logs descending
+    const sortedLogs = [...logs].sort((a, b) => new Date(b.log_date) - new Date(a.log_date))
 
-    // Streak must include today or yesterday
-    if (dates[0] !== today && dates[0] !== yesterday) return 0
+    const todayStr = getCurrentDateString();
 
-    let streak = 1
-    for (let i = 1; i < dates.length; i++) {
-        const prevDate = new Date(dates[i - 1])
-        const currDate = new Date(dates[i])
-        const diffDays = (prevDate - currDate) / 86400000
+    let currentStreak = 0;
+    let expectedDate = new Date(todayStr);
 
-        if (diffDays === 1) {
-            streak++
-        } else {
-            break
+    // Convert to map for easy lookup
+    const logMap = {};
+    sortedLogs.forEach(l => { logMap[l.log_date] = l; });
+
+    // Loop backwards from today
+    for (let i = 0; i < 365; i++) {
+        const checkStr = expectedDate.toISOString().split('T')[0];
+        const log = logMap[checkStr];
+
+        if (log) {
+            const { isComplete } = checkDayCompletion(log, levelConfig);
+            if (isComplete) {
+                currentStreak++;
+            } else if (i !== 0) {
+                // If not complete and it's a past day, streak breaks
+                break;
+            }
+        } else if (i !== 0) {
+            // No log and it's a past day, streak breaks
+            break;
         }
+
+        // Go back one day
+        expectedDate.setDate(expectedDate.getDate() - 1);
     }
 
-    return streak
+    return currentStreak;
 }

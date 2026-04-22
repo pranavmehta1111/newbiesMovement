@@ -1,114 +1,82 @@
 import { useState, useEffect } from 'react'
-import { CATEGORIES, getChampionEmoji, getLeaderboardByCategory, supabase } from '../lib/supabase'
+import { CHALLENGE_LEVELS, getLeaderboardByLevel } from '../lib/supabase'
 
-export default function Leaderboard({ userCategory, userId }) {
-    const [activeTab, setActiveTab] = useState(userCategory || 'normie')
+const levels = Object.values(CHALLENGE_LEVELS)
+
+export default function Leaderboard({ currentLevel }) {
+    const [activeLevel, setActiveLevel] = useState(currentLevel)
     const [data, setData] = useState([])
     const [loading, setLoading] = useState(true)
 
-    const fetchLeaderboard = async () => {
-        setLoading(true)
-        const results = await getLeaderboardByCategory(activeTab)
-        setData(results)
-        setLoading(false)
-    }
-
     useEffect(() => {
-        fetchLeaderboard()
+        loadLeaderboard(activeLevel)
+    }, [activeLevel])
 
-        // Real-time subscription
-        const channel = supabase
-            .channel('leaderboard-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'activities' }, () => {
-                fetchLeaderboard()
-            })
-            .subscribe()
-
-        return () => {
-            supabase.removeChannel(channel)
+    const loadLeaderboard = async (levelId) => {
+        setLoading(true)
+        try {
+            const result = await getLeaderboardByLevel(levelId)
+            setData(result)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setLoading(false)
         }
-    }, [activeTab])
-
-    const getRankStyle = (rank) => {
-        if (rank === 1) return 'gold'
-        if (rank === 2) return 'silver'
-        if (rank === 3) return 'bronze'
-        return ''
     }
 
-    const getRankEmoji = (rank) => {
-        if (rank === 1) return '🥇'
-        if (rank === 2) return '🥈'
-        if (rank === 3) return '🥉'
-        return rank
+    const getRankDisplay = (index) => {
+        if (index === 0) return { text: '🥇', class: 'gold' }
+        if (index === 1) return { text: '🥈', class: 'silver' }
+        if (index === 2) return { text: '🥉', class: 'bronze' }
+        return { text: `${index + 1}`, class: '' }
     }
 
     return (
-        <div className="card">
-            <h3 className="font-semibold text-lg mb-4">Leaderboard 🏆</h3>
+        <div className="card fade-in">
+            <h2 className="text-lg font-extrabold mb-3">🏆 Leaderboard</h2>
 
-            {/* Category tabs */}
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
-                {Object.entries(CATEGORIES).map(([key, { name, goal }]) => (
+            {/* Level tabs */}
+            <div className="flex gap-1.5 overflow-x-auto mb-4 pb-1" style={{ scrollbarWidth: 'none' }}>
+                {levels.map(level => (
                     <button
-                        key={key}
-                        onClick={() => setActiveTab(key)}
-                        className={`tab flex-shrink-0 ${activeTab === key ? 'active' : ''}`}
+                        key={level.id}
+                        onClick={() => setActiveLevel(level.id)}
+                        className={`tab ${activeLevel === level.id ? 'active' : ''}`}
+                        id={`lb-tab-${level.id}`}
                     >
-                        {name.split(' ').pop()} ({goal}km)
+                        {level.icon} {level.name}
                     </button>
                 ))}
             </div>
 
             {/* Leaderboard content */}
             {loading ? (
-                <div className="flex justify-center py-8">
-                    <div className="spinner"></div>
+                <div className="text-center py-8">
+                    <div className="spinner mx-auto mb-3"></div>
+                    <p className="text-sm text-[color:var(--text-muted)]">Loading...</p>
                 </div>
             ) : data.length === 0 ? (
-                <p className="text-center text-[color:var(--text-muted)] py-8">
-                    No participants yet in this category. Be the first! 🚀
-                </p>
+                <div className="text-center py-8">
+                    <div className="text-4xl mb-3">🏜️</div>
+                    <p className="text-sm text-[color:var(--text-muted)]">No one has started this level yet. Be the first!</p>
+                </div>
             ) : (
-                <div className="space-y-2">
-                    {data.map((user, index) => {
-                        const rank = index + 1
-                        const goal = CATEGORIES[activeTab]?.goal || 50
-                        const percentage = (user.totalKm / goal) * 100
-                        const isCurrentUser = user.id === userId
-
+                <div className="space-y-1">
+                    {data.map((user, i) => {
+                        const rank = getRankDisplay(i)
                         return (
-                            <div
-                                key={user.id}
-                                className={`leaderboard-row ${isCurrentUser ? 'bg-[color:var(--accent)]/10 border border-[color:var(--accent)]/30' : ''}`}
-                            >
-                                {/* Rank */}
-                                <div className={`rank ${getRankStyle(rank)}`}>
-                                    {getRankEmoji(rank)}
-                                </div>
-
-                                {/* Champion */}
-                                <div className="text-2xl mx-3">
-                                    {percentage >= 100 && <span className="text-sm">👑</span>}
-                                    {getChampionEmoji(user.champion, percentage)}
-                                </div>
-
-                                {/* Name and stats */}
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium truncate">
-                                        {user.name}
-                                        {isCurrentUser && <span className="text-xs text-[color:var(--accent)] ml-2">(You)</span>}
-                                    </p>
-                                    <p className="text-sm text-[color:var(--text-secondary)]">
-                                        {user.totalKm.toFixed(1)} km • {percentage.toFixed(0)}%
-                                    </p>
-                                </div>
-
-                                {/* Streak */}
-                                {user.streak > 0 && (
-                                    <div className="streak-badge">
-                                        🔥 {user.streak}
+                            <div key={user.id} className="leaderboard-row fade-in" style={{ animationDelay: `${i * 0.05}s` }}>
+                                <div className={`rank ${rank.class}`}>{rank.text}</div>
+                                <div className="flex-1 min-w-0 ml-2">
+                                    <div className="font-bold text-sm truncate">{user.name}</div>
+                                    <div className="text-xs text-[color:var(--text-muted)]">
+                                        {user.score} day{user.score !== 1 ? 's' : ''} completed
                                     </div>
+                                </div>
+                                {user.streak > 0 && (
+                                    <span className="streak-badge ml-2">
+                                        🔥 {user.streak}
+                                    </span>
                                 )}
                             </div>
                         )

@@ -1,188 +1,137 @@
 import { useState } from 'react'
-import { CATEGORIES, CHAMPIONS } from '../lib/supabase'
+import { CHALLENGE_LEVELS } from '../lib/supabase'
+
+const levels = Object.values(CHALLENGE_LEVELS)
 
 export default function Onboarding({ onComplete }) {
-    const [step, setStep] = useState(1)
+    const [step, setStep] = useState(1) // 1=name, 2=level
     const [name, setName] = useState('')
-    const [category, setCategory] = useState('')
-    const [champion, setChampion] = useState('')
+    const [selectedLevel, setSelectedLevel] = useState('')
     const [error, setError] = useState('')
-    const [loading, setLoading] = useState(false)
 
-    const handleNext = () => {
+    const handleNameSubmit = (e) => {
+        e.preventDefault()
+        const trimmed = name.trim()
+        if (trimmed.length < 2) {
+            setError('Name must be at least 2 characters')
+            return
+        }
         setError('')
-
-        if (step === 1 && !name.trim()) {
-            setError('Please enter your name')
-            return
-        }
-        if (step === 2 && !category) {
-            setError('Please select a category')
-            return
-        }
-
-        setStep(step + 1)
+        setStep(2)
     }
 
-    const handleBack = () => {
-        setError('')
-        setStep(step - 1)
-    }
-
-    const handleSubmit = async () => {
-        setError('')
-
-        if (!champion) {
-            setError('Please choose your champion')
+    const handleComplete = () => {
+        if (!selectedLevel) {
+            setError('Please select a challenge level')
             return
         }
-
-        setLoading(true)
-        try {
-            await onComplete({ name: name.trim(), category, champion })
-        } catch (err) {
-            setError(err.message || 'Something went wrong')
-            setLoading(false)
-        }
+        onComplete({ name: name.trim(), challenge_level: selectedLevel })
     }
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4">
-            <div className="card w-full max-w-lg fade-in">
-                {/* Progress indicator */}
-                <div className="flex items-center justify-center gap-2 mb-8">
-                    {[1, 2, 3].map((s) => (
-                        <div
-                            key={s}
-                            className={`w-3 h-3 rounded-full transition-all ${s === step
-                                ? 'w-8 bg-[color:var(--accent)]'
-                                : s < step
-                                    ? 'bg-[color:var(--accent)]'
-                                    : 'bg-[color:var(--border)]'
-                                }`}
-                        />
-                    ))}
+            <div className="card w-full max-w-lg fade-in-up">
+                {/* Progress dots */}
+                <div className="flex justify-center gap-2 mb-6">
+                    <div className={`w-2.5 h-2.5 rounded-full transition-all ${step >= 1 ? 'bg-[color:var(--accent)] scale-110' : 'bg-[color:var(--border)]'}`}></div>
+                    <div className={`w-2.5 h-2.5 rounded-full transition-all ${step >= 2 ? 'bg-[color:var(--accent)] scale-110' : 'bg-[color:var(--border)]'}`}></div>
                 </div>
 
-                {/* Step 1: Name */}
                 {step === 1 && (
                     <div className="fade-in">
-                        <h2 className="text-2xl font-bold text-center mb-2">Welcome, Challenger! 👋</h2>
-                        <p className="text-center text-[color:var(--text-secondary)] mb-8">
-                            Let's get you set up for the movement challenge
-                        </p>
+                        <div className="text-center mb-6">
+                            <div className="text-4xl mb-3">👋</div>
+                            <h2 className="text-2xl font-extrabold mb-1">Welcome aboard!</h2>
+                            <p className="text-sm text-[color:var(--text-secondary)]">What should we call you?</p>
+                        </div>
 
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium mb-2 text-[color:var(--text-secondary)]">
-                                What should we call you?
-                            </label>
+                        <form onSubmit={handleNameSubmit} className="space-y-4">
                             <input
                                 type="text"
-                                className="input text-lg"
-                                placeholder="Your name"
                                 value={name}
-                                onChange={(e) => setName(e.target.value)}
+                                onChange={(e) => { setName(e.target.value); setError('') }}
+                                placeholder="Your name"
+                                className="input text-center text-lg"
                                 autoFocus
-                                maxLength={50}
+                                id="name-input"
                             />
-                        </div>
+                            {error && <p className="text-[color:var(--danger)] text-sm text-center">{error}</p>}
+                            <button
+                                type="submit"
+                                disabled={name.trim().length < 2}
+                                className="btn-primary w-full"
+                                id="name-next-btn"
+                            >
+                                Next →
+                            </button>
+                        </form>
                     </div>
                 )}
 
-                {/* Step 2: Category */}
                 {step === 2 && (
                     <div className="fade-in">
-                        <h2 className="text-2xl font-bold text-center mb-2">Choose Your Path 🎯</h2>
-                        <p className="text-center text-[color:var(--text-secondary)] mb-8">
-                            Pick a goal that challenges you but feels achievable
-                        </p>
-
-                        <div className="space-y-3">
-                            {Object.entries(CATEGORIES).map(([key, { name: catName, goal }]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => setCategory(key)}
-                                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${category === key
-                                        ? 'border-[color:var(--accent)] bg-[color:var(--accent)]/10'
-                                        : 'border-[color:var(--border)] hover:border-[color:var(--accent-light)]'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold">{catName}</span>
-                                        <span className="text-[color:var(--accent)] font-bold">{goal} km</span>
-                                    </div>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Step 3: Champion */}
-                {step === 3 && (
-                    <div className="fade-in">
-                        <h2 className="text-2xl font-bold text-center mb-2">Choose Your Champion 🏆</h2>
-                        <p className="text-center text-[color:var(--text-secondary)] mb-8">
-                            Your companion will grow as you progress!
-                        </p>
-
-                        <div className="grid grid-cols-3 gap-4">
-                            {Object.entries(CHAMPIONS).map(([key, { name: champName, stages }]) => (
-                                <button
-                                    key={key}
-                                    onClick={() => setChampion(key)}
-                                    className={`champion-option ${champion === key ? 'selected' : ''}`}
-                                >
-                                    <span className="emoji">{stages.baby}</span>
-                                    <span className="font-medium text-sm">{champName}</span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 p-4 rounded-xl bg-[color:var(--bg-secondary)] text-center">
+                        <div className="text-center mb-5">
+                            <h2 className="text-2xl font-extrabold mb-1">Choose Your Level</h2>
                             <p className="text-sm text-[color:var(--text-secondary)]">
-                                🐣 Baby → 🐤 Teen → 🐦 Adult
+                                Pick a challenge that matches your ambition, <span className="font-semibold text-[color:var(--accent)]">{name.trim()}</span>!
                             </p>
-                            <p className="text-xs text-[color:var(--text-muted)] mt-1">
-                                Your champion evolves as you reach 40%, 80%, and 100%!
-                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+                            {levels.map((level) => (
+                                <div
+                                    key={level.id}
+                                    onClick={() => { setSelectedLevel(level.id); setError('') }}
+                                    className={`level-card ${selectedLevel === level.id ? 'selected' : ''}`}
+                                    id={`level-${level.id}`}
+                                >
+                                    <span className="level-icon">{level.icon}</span>
+                                    <span className="level-name">{level.name}</span>
+                                    <span className="level-targets">
+                                        💧 {level.water}L · 🚶 {level.steps.toLocaleString()}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Selected level preview */}
+                        {selectedLevel && (
+                            <div className="card mb-4 p-4 fade-in" style={{ background: 'var(--bg-secondary)' }}>
+                                <h3 className="font-bold text-sm mb-2 text-center">
+                                    {CHALLENGE_LEVELS[selectedLevel].icon} Daily Targets for {CHALLENGE_LEVELS[selectedLevel].name}
+                                </h3>
+                                <div className="flex justify-around text-center text-xs">
+                                    <div>
+                                        <div className="text-lg mb-0.5">🍬</div>
+                                        <div className="font-semibold" style={{ color: 'var(--sugar-color)' }}>No Junk Sugar</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-lg mb-0.5">💧</div>
+                                        <div className="font-semibold" style={{ color: 'var(--water-color)' }}>{CHALLENGE_LEVELS[selectedLevel].water}L Water</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-lg mb-0.5">🚶</div>
+                                        <div className="font-semibold" style={{ color: 'var(--steps-color)' }}>{CHALLENGE_LEVELS[selectedLevel].steps.toLocaleString()} Steps</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {error && <p className="text-[color:var(--danger)] text-sm text-center mb-3">{error}</p>}
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setStep(1)} className="btn-secondary flex-1" id="back-btn">← Back</button>
+                            <button
+                                onClick={handleComplete}
+                                disabled={!selectedLevel}
+                                className="btn-primary flex-1"
+                                id="start-btn"
+                            >
+                                Let's Go! 🔥
+                            </button>
                         </div>
                     </div>
                 )}
-
-                {/* Error message */}
-                {error && (
-                    <p className="mt-4 text-sm text-center text-[color:var(--danger)]">{error}</p>
-                )}
-
-                {/* Navigation buttons */}
-                <div className="flex gap-3 mt-8">
-                    {step > 1 && (
-                        <button onClick={handleBack} className="btn-secondary flex-1">
-                            ← Back
-                        </button>
-                    )}
-
-                    {step < 3 ? (
-                        <button onClick={handleNext} className="btn-primary flex-1">
-                            Continue →
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleSubmit}
-                            className="btn-primary flex-1 flex items-center justify-center gap-2"
-                            disabled={loading}
-                        >
-                            {loading ? (
-                                <>
-                                    <div className="spinner w-5 h-5 border-2"></div>
-                                    Creating...
-                                </>
-                            ) : (
-                                "Let's Go! 🚀"
-                            )}
-                        </button>
-                    )}
-                </div>
             </div>
         </div>
     )
