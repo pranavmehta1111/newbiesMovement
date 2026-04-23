@@ -1,4 +1,4 @@
-export default function ProgressRings({ sugarMet, waterLiters, waterTarget, steps, stepsTarget }) {
+export default function ProgressRings({ sugarMet, waterLiters, waterTarget, steps, stepsTarget, optOutSugar }) {
     const ringSize = 110
     const strokeWidth = 10
     const radius = (ringSize - strokeWidth) / 2

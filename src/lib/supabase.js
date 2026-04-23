@@ -151,17 +151,20 @@ export async function upsertDailyLog(userId, logData) {
     return data
 }
 
-export function checkDayCompletion(log, levelConfig) {
-    if (!log || !levelConfig) return { isComplete: false, metCount: 0 };
+export function checkDayCompletion(log, levelConfig, optOutSugar = false) {
+    if (!log || !levelConfig) return { isComplete: false, metCount: 0, totalTargets: optOutSugar ? 2 : 3 };
 
     let metCount = 0;
-    if (log.sugar_rule_met) metCount++;
+    if (!optOutSugar && log.sugar_rule_met) metCount++;
     if (log.water_liters >= levelConfig.water) metCount++;
     if (log.steps >= levelConfig.steps) metCount++;
 
+    const required = optOutSugar ? 2 : 3;
+
     return {
-        isComplete: metCount === 3,
-        metCount
+        isComplete: metCount >= required,
+        metCount,
+        totalTargets: required
     };
 }
 
@@ -174,6 +177,7 @@ export async function getLeaderboardByLevel(levelId) {
             id,
             name,
             challenge_level,
+            opt_out_sugar,
             daily_logs (log_date, sugar_rule_met, water_liters, steps)
         `)
         .eq('challenge_level', levelId)
@@ -191,11 +195,11 @@ export async function getLeaderboardByLevel(levelId) {
         const validLogs = user.daily_logs || [];
 
         validLogs.forEach(log => {
-            const { isComplete } = checkDayCompletion(log, levelConfig);
+            const { isComplete } = checkDayCompletion(log, levelConfig, user.opt_out_sugar);
             if (isComplete) completedDays++;
         });
 
-        const streak = calculateStreak(validLogs, levelConfig);
+        const streak = calculateStreak(validLogs, levelConfig, user.opt_out_sugar);
 
         return {
             ...user,
@@ -214,7 +218,7 @@ export async function getAllUsers() {
 
     const { data, error } = await supabase
         .from('users')
-        .select('id, name, phone, challenge_level')
+        .select('id, name, phone, challenge_level, opt_out_sugar')
         .order('name')
 
     if (error) {
@@ -250,7 +254,7 @@ export async function resetAllData() {
     }
 }
 
-function calculateStreak(logs, levelConfig) {
+function calculateStreak(logs, levelConfig, optOutSugar = false) {
     if (!logs || !logs.length) return 0
 
     // Sort logs descending
@@ -271,7 +275,7 @@ function calculateStreak(logs, levelConfig) {
         const log = logMap[checkStr];
 
         if (log) {
-            const { isComplete } = checkDayCompletion(log, levelConfig);
+            const { isComplete } = checkDayCompletion(log, levelConfig, optOutSugar);
             if (isComplete) {
                 currentStreak++;
             } else if (i !== 0) {

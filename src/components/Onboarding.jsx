@@ -7,6 +7,7 @@ export default function Onboarding({ onComplete }) {
     const [step, setStep] = useState(1) // 1=name, 2=level
     const [name, setName] = useState('')
     const [selectedLevel, setSelectedLevel] = useState('')
+    const [optOutSugar, setOptOutSugar] = useState(false)
     const [error, setError] = useState('')
 
     const handleNameSubmit = (e) => {
@@ -25,7 +26,7 @@ export default function Onboarding({ onComplete }) {
             setError('Please select a challenge level')
             return
         }
-        onComplete({ name: name.trim(), challenge_level: selectedLevel })
+        onComplete({ name: name.trim(), challenge_level: selectedLevel, opt_out_sugar: optOutSugar })
     }
 
     return (
@@ -101,7 +102,7 @@ export default function Onboarding({ onComplete }) {
                                     {CHALLENGE_LEVELS[selectedLevel].icon} Daily Targets for {CHALLENGE_LEVELS[selectedLevel].name}
                                 </h3>
                                 <div className="flex justify-around text-center text-xs">
-                                    <div>
+                                    <div className={optOutSugar ? 'opacity-30 line-through' : ''}>
                                         <div className="text-lg mb-0.5">🍬</div>
                                         <div className="font-semibold" style={{ color: 'var(--sugar-color)' }}>No Junk Sugar</div>
                                     </div>
@@ -116,6 +117,19 @@ export default function Onboarding({ onComplete }) {
                                 </div>
                             </div>
                         )}
+
+                        <div className="mb-5 flex items-center justify-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="opt-out"
+                                checked={optOutSugar}
+                                onChange={(e) => setOptOutSugar(e.target.checked)}
+                                className="w-4 h-4 accent-[color:var(--accent)]"
+                            />
+                            <label htmlFor="opt-out" className="text-sm font-medium text-[color:var(--text-secondary)]">
+                                I want to opt out of the Sugar Challenge
+                            </label>
+                        </div>
 
                         {error && <p className="text-[color:var(--danger)] text-sm text-center mb-3">{error}</p>}
 

@@ -16,6 +16,7 @@ CREATE TABLE users (
   phone TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   challenge_level TEXT NOT NULL CHECK (challenge_level IN ('seedling', 'sprout', 'grower', 'beast', 'legend')),
+  opt_out_sugar BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

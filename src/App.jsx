@@ -70,6 +70,7 @@ function App() {
       phone,
       name: userData.name,
       challenge_level: userData.challenge_level,
+      opt_out_sugar: userData.opt_out_sugar,
     })
     setUser(newUser)
     setAppState('dashboard')

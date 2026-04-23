@@ -18,7 +18,7 @@ const SUGAR_RULES = {
     ]
 }
 
-export default function DailyCheckin({ currentLog, levelConfig, onSave, onClose }) {
+export default function DailyCheckin({ currentLog, levelConfig, onSave, onClose, optOutSugar }) {
     const [sugarMet, setSugarMet] = useState(currentLog?.sugar_rule_met || false)
     const [waterLiters, setWaterLiters] = useState(currentLog?.water_liters || 0)
     const [steps, setSteps] = useState(currentLog?.steps || 0)
@@ -58,43 +58,45 @@ export default function DailyCheckin({ currentLog, levelConfig, onSave, onClose 
                 </div>
 
                 {/* Sugar Section */}
-                <div className="mb-5">
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="font-bold text-sm">🍬 Sugar Rule</span>
+                {!optOutSugar && (
+                    <div className="mb-5">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="font-bold text-sm">🍬 Sugar Rule</span>
+                            <button
+                                onClick={() => setShowRules(!showRules)}
+                                className="text-xs text-[color:var(--accent)] font-semibold cursor-pointer bg-transparent border-none hover:underline"
+                                id="sugar-rules-toggle"
+                            >
+                                {showRules ? 'Hide rules ▲' : 'View rules ▼'}
+                            </button>
+                        </div>
+
+                        {showRules && (
+                            <div className="card mb-3 p-3 fade-in text-xs" style={{ background: 'var(--bg-secondary)' }}>
+                                <p className="font-bold text-red-500 mb-1.5">🚫 FORBIDDEN</p>
+                                {SUGAR_RULES.forbidden.map((r, i) => (
+                                    <p key={i} className="mb-1 text-[color:var(--text-secondary)]">{r.emoji} {r.text}</p>
+                                ))}
+                                <div className="border-t border-[color:var(--border)] my-2"></div>
+                                <p className="font-bold text-green-500 mb-1.5">✅ ALLOWED</p>
+                                {SUGAR_RULES.allowed.map((r, i) => (
+                                    <p key={i} className="mb-1 text-[color:var(--text-secondary)]">{r.emoji} {r.text}</p>
+                                ))}
+                            </div>
+                        )}
+
                         <button
-                            onClick={() => setShowRules(!showRules)}
-                            className="text-xs text-[color:var(--accent)] font-semibold cursor-pointer bg-transparent border-none hover:underline"
-                            id="sugar-rules-toggle"
+                            onClick={() => setSugarMet(!sugarMet)}
+                            className={`sugar-check ${sugarMet ? 'checked' : ''}`}
+                            id="sugar-toggle"
                         >
-                            {showRules ? 'Hide rules ▲' : 'View rules ▼'}
+                            <span className="check-icon">
+                                {sugarMet && <span>✓</span>}
+                            </span>
+                            {sugarMet ? 'No junk sugar today! 🎉' : 'I avoided junk sugar today'}
                         </button>
                     </div>
-
-                    {showRules && (
-                        <div className="card mb-3 p-3 fade-in text-xs" style={{ background: 'var(--bg-secondary)' }}>
-                            <p className="font-bold text-red-500 mb-1.5">🚫 FORBIDDEN</p>
-                            {SUGAR_RULES.forbidden.map((r, i) => (
-                                <p key={i} className="mb-1 text-[color:var(--text-secondary)]">{r.emoji} {r.text}</p>
-                            ))}
-                            <div className="border-t border-[color:var(--border)] my-2"></div>
-                            <p className="font-bold text-green-500 mb-1.5">✅ ALLOWED</p>
-                            {SUGAR_RULES.allowed.map((r, i) => (
-                                <p key={i} className="mb-1 text-[color:var(--text-secondary)]">{r.emoji} {r.text}</p>
-                            ))}
-                        </div>
-                    )}
-
-                    <button
-                        onClick={() => setSugarMet(!sugarMet)}
-                        className={`sugar-check ${sugarMet ? 'checked' : ''}`}
-                        id="sugar-toggle"
-                    >
-                        <span className="check-icon">
-                            {sugarMet && <span>✓</span>}
-                        </span>
-                        {sugarMet ? 'No junk sugar today! 🎉' : 'I avoided junk sugar today'}
-                    </button>
-                </div>
+                )}
 
                 {/* Water Section */}
                 <div className="mb-5">
@@ -145,8 +147,8 @@ export default function DailyCheckin({ currentLog, levelConfig, onSave, onClose 
                                 key={v}
                                 onClick={() => setSteps(v)}
                                 className={`text-xs px-2.5 py-1.5 rounded-lg font-semibold cursor-pointer border transition-all ${steps === v
-                                        ? 'bg-[color:var(--accent)] text-white border-transparent'
-                                        : 'bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)] border-[color:var(--border)] hover:border-[color:var(--accent)]'
+                                    ? 'bg-[color:var(--accent)] text-white border-transparent'
+                                    : 'bg-[color:var(--bg-secondary)] text-[color:var(--text-secondary)] border-[color:var(--border)] hover:border-[color:var(--accent)]'
                                     }`}
                             >
                                 {(v / 1000).toFixed(0)}k
@@ -157,7 +159,9 @@ export default function DailyCheckin({ currentLog, levelConfig, onSave, onClose 
 
                 {/* Completion Preview */}
                 <div className="flex justify-center gap-3 mb-4">
-                    <span className={`text-lg ${sugarMet ? '' : 'opacity-30'}`}>🍬✓</span>
+                    {!optOutSugar && (
+                        <span className={`text-lg ${sugarMet ? '' : 'opacity-30'}`}>🍬✓</span>
+                    )}
                     <span className={`text-lg ${waterLiters >= levelConfig.water ? '' : 'opacity-30'}`}>💧✓</span>
                     <span className={`text-lg ${steps >= levelConfig.steps ? '' : 'opacity-30'}`}>🚶✓</span>
                 </div>

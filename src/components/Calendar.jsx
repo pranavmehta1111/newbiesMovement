@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { checkDayCompletion } from '../lib/supabase'
 
-export default function Calendar({ logs, levelConfig, onDayClick }) {
+export default function Calendar({ logs, levelConfig, onDayClick, optOutSugar }) {
     const [viewDate, setViewDate] = useState(new Date())
 
     const year = viewDate.getFullYear()
@@ -30,8 +30,12 @@ export default function Calendar({ logs, levelConfig, onDayClick }) {
         if (isToday) cls += ' today'
 
         if (log) {
-            const { metCount } = checkDayCompletion(log, levelConfig)
-            cls += ` complete-${metCount}`
+            const { metCount } = checkDayCompletion(log, levelConfig, optOutSugar)
+            let mappedCount = metCount;
+            if (optOutSugar && metCount > 0) {
+                mappedCount = metCount === 2 ? 3 : 2;
+            }
+            cls += ` complete-${mappedCount}`
         }
 
         return cls
@@ -54,14 +58,16 @@ export default function Calendar({ logs, levelConfig, onDayClick }) {
             {/* Legend */}
             <div className="flex justify-center gap-3 mb-3 text-xs">
                 <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--steps-color)' }}></span> 3/3
+                    <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--steps-color)' }}></span> {optOutSugar ? '2/2' : '3/3'}
                 </span>
                 <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--sugar-color)' }}></span> 2/3
+                    <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--sugar-color)' }}></span> {optOutSugar ? '1/2' : '2/3'}
                 </span>
-                <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#f97316' }}></span> 1/3
-                </span>
+                {!optOutSugar && (
+                    <span className="flex items-center gap-1">
+                        <span className="w-3 h-3 rounded-sm inline-block" style={{ background: '#f97316' }}></span> 1/3
+                    </span>
+                )}
                 <span className="flex items-center gap-1">
                     <span className="w-3 h-3 rounded-sm inline-block" style={{ background: 'var(--bg-secondary)' }}></span> None
                 </span>

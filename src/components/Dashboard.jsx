@@ -81,8 +81,8 @@ export default function Dashboard({ user, onLogout }) {
     }
 
     // Calculate stats
-    const todayCompletion = todayLog ? checkDayCompletion(todayLog, levelConfig) : { isComplete: false, metCount: 0 }
-    const completedDays = logs.filter(l => checkDayCompletion(l, levelConfig).isComplete).length
+    const todayCompletion = todayLog ? checkDayCompletion(todayLog, levelConfig, user.opt_out_sugar) : { isComplete: false, metCount: 0, totalTargets: user.opt_out_sugar ? 2 : 3 }
+    const completedDays = logs.filter(l => checkDayCompletion(l, levelConfig, user.opt_out_sugar).isComplete).length
 
     if (loading) {
         return (
@@ -158,6 +158,7 @@ export default function Dashboard({ user, onLogout }) {
                                 waterTarget={levelConfig.water}
                                 steps={todayLog?.steps || 0}
                                 stepsTarget={levelConfig.steps}
+                                optOutSugar={user.opt_out_sugar}
                             />
 
                             {/* Completion status */}
@@ -168,7 +169,7 @@ export default function Dashboard({ user, onLogout }) {
                                     </p>
                                 ) : (
                                     <p className="text-xs text-[color:var(--text-muted)]">
-                                        {todayCompletion.metCount}/3 targets met today
+                                        {todayCompletion.metCount}/{todayCompletion.totalTargets} targets met today
                                     </p>
                                 )}
                             </div>
@@ -215,6 +216,7 @@ export default function Dashboard({ user, onLogout }) {
                         logs={logs}
                         levelConfig={levelConfig}
                         onDayClick={openCheckinForDate}
+                        optOutSugar={user.opt_out_sugar}
                     />
                 )}
 
@@ -238,6 +240,7 @@ export default function Dashboard({ user, onLogout }) {
                     levelConfig={levelConfig}
                     onSave={handleCheckin}
                     onClose={() => setShowCheckin(false)}
+                    optOutSugar={user.opt_out_sugar}
                 />
             )}
         </div>
