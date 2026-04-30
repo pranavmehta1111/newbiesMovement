@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import {
     CHALLENGE_LEVELS,
     DELETE_PHONE,
+    CATEGORY_ADMIN_PHONES,
     getAllUsers,
     updateUserLevel,
     deleteUser,
@@ -17,6 +18,7 @@ export default function AdminPanel({ currentUser, onDataChange }) {
     const [message, setMessage] = useState('')
 
     const canDelete = currentUser.phone === DELETE_PHONE
+    const canChangeCategory = CATEGORY_ADMIN_PHONES.includes(currentUser.phone)
 
     useEffect(() => {
         loadUsers()
@@ -114,15 +116,21 @@ export default function AdminPanel({ currentUser, onDataChange }) {
                                 <div className="font-semibold text-sm truncate">{u.name}</div>
                                 <div className="text-xs text-[color:var(--text-muted)]">{u.phone}</div>
                             </div>
-                            <select
-                                value={u.challenge_level}
-                                onChange={(e) => handleLevelChange(u.id, e.target.value)}
-                                className="text-xs p-1.5 rounded-lg bg-[color:var(--bg-card-solid)] border border-[color:var(--border)] text-[color:var(--text-primary)] cursor-pointer"
-                            >
-                                {levels.map(l => (
-                                    <option key={l.id} value={l.id}>{l.icon} {l.name}</option>
-                                ))}
-                            </select>
+                            {canChangeCategory ? (
+                                <select
+                                    value={u.challenge_level}
+                                    onChange={(e) => handleLevelChange(u.id, e.target.value)}
+                                    className="text-xs p-1.5 rounded-lg bg-[color:var(--bg-card-solid)] border border-[color:var(--border)] text-[color:var(--text-primary)] cursor-pointer"
+                                >
+                                    {levels.map(l => (
+                                        <option key={l.id} value={l.id}>{l.icon} {l.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <span className="level-badge text-xs">
+                                    {CHALLENGE_LEVELS[u.challenge_level]?.icon} {CHALLENGE_LEVELS[u.challenge_level]?.name}
+                                </span>
+                            )}
                             {canDelete && u.id !== currentUser.id && (
                                 <button
                                     onClick={() => handleDelete(u.id, u.name)}

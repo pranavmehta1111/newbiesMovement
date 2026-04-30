@@ -17,14 +17,21 @@ export const supabase = isSupabaseConfigured
 export const ADMIN_PHONES = [
     '9314422001', // Pranav
     '7349327332', // Sudha
-    '8197898805',
-    '9944069451',
-    '9380936622',
+    '7349216628',
+    '7010364004',
+    '9597739751',
     '9779497219', // Ujjwal
 ]
 
 // Phone number with delete user permission
 export const DELETE_PHONE = '9887922770'
+
+// Phone numbers allowed to change categories (challenge levels)
+// Only these admins can change a user's category from the admin panel
+export const CATEGORY_ADMIN_PHONES = [
+    '9314422001', // Pranav
+    '9887922770',
+]
 
 // Challenge levels
 export const CHALLENGE_LEVELS = {

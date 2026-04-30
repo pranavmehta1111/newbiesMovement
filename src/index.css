@@ -372,6 +372,17 @@ body::before {
   box-shadow: var(--glow);
 }
 
+/* Move theme toggle to bottom-left on mobile to avoid overlap with header elements */
+@media (max-width: 640px) {
+  .theme-toggle {
+    top: auto;
+    right: auto;
+    bottom: 1.25rem;
+    left: 1.25rem;
+    box-shadow: var(--card-shadow);
+  }
+}
+
 /* ---- Animations ---- */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(12px); }
