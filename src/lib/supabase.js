@@ -35,10 +35,10 @@ export const CATEGORY_ADMIN_PHONES = [
 
 // Challenge levels
 export const CHALLENGE_LEVELS = {
-    seedling: { id: 'seedling', name: 'Seedling', icon: '🌱', sugar: true, water: 2.0, steps: 5000 },
-    sprout: { id: 'sprout', name: 'Sprout', icon: '🌿', sugar: true, water: 2.5, steps: 7000 },
-    grower: { id: 'grower', name: 'Grower', icon: '🌳', sugar: true, water: 3.0, steps: 9000 },
-    beast: { id: 'beast', name: 'Beast', icon: '⚡', sugar: true, water: 3.5, steps: 11000 },
+    seedling: { id: 'seedling', name: 'Seedling', icon: '🌱', sugar: true, water: 2.0, steps: 4000 },
+    sprout: { id: 'sprout', name: 'Sprout', icon: '🌿', sugar: true, water: 2.5, steps: 6000 },
+    grower: { id: 'grower', name: 'Grower', icon: '🌳', sugar: true, water: 3.0, steps: 8000 },
+    beast: { id: 'beast', name: 'Beast', icon: '⚡', sugar: true, water: 3.5, steps: 10000 },
     legend: { id: 'legend', name: 'Legend', icon: '🔥', sugar: true, water: 3.5, steps: 12000 },
 }
 
