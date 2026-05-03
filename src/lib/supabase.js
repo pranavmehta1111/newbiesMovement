@@ -17,9 +17,6 @@ export const supabase = isSupabaseConfigured
 export const ADMIN_PHONES = [
     '9314422001', // Pranav
     '7349327332', // Sudha
-    '7349216628',
-    '7010364004',
-    '9597739751',
     '9779497219', // Ujjwal
 ]
 
