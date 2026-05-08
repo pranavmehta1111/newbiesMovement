@@ -221,7 +221,7 @@ export default function Dashboard({ user, onLogout }) {
                 )}
 
                 {activeTab === 'leaderboard' && (
-                    <Leaderboard currentLevel={user.challenge_level} />
+                    <Leaderboard currentUserId={user.id} />
                 )}
 
                 {activeTab === 'stats' && (

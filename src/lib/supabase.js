@@ -217,6 +217,47 @@ export async function getLeaderboardByLevel(levelId) {
         .sort((a, b) => b.score - a.score || b.streak - a.streak)
 }
 
+export async function getAllLeaderboard() {
+    if (!supabase) return []
+
+    const { data: users, error } = await supabase
+        .from('users')
+        .select(`
+            id,
+            name,
+            challenge_level,
+            opt_out_sugar,
+            daily_logs (log_date, sugar_rule_met, water_liters, steps)
+        `)
+
+    if (error) {
+        console.error('Error fetching leaderboard:', error)
+        return []
+    }
+
+    return users.map(user => {
+        const levelConfig = CHALLENGE_LEVELS[user.challenge_level];
+        let completedDays = 0;
+        const validLogs = user.daily_logs || [];
+
+        validLogs.forEach(log => {
+            const { isComplete } = checkDayCompletion(log, levelConfig, user.opt_out_sugar);
+            if (isComplete) completedDays++;
+        });
+
+        const streak = calculateStreak(validLogs, levelConfig, user.opt_out_sugar);
+
+        return {
+            ...user,
+            score: completedDays,
+            streak,
+            totalLogs: validLogs.length
+        }
+    })
+        .filter(u => u.totalLogs > 0)
+        .sort((a, b) => b.score - a.score || b.streak - a.streak)
+}
+
 export async function getAllUsers() {
     if (!supabase) return []
 
