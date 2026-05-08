@@ -1,19 +1,37 @@
 import { useState, useEffect } from 'react'
-import { CHALLENGE_LEVELS, getAllLeaderboard } from '../lib/supabase'
+import { CHALLENGE_LEVELS, getAllLeaderboard, getLeaderboardByLevel } from '../lib/supabase'
 
-export default function Leaderboard({ currentUserId }) {
+const levels = Object.values(CHALLENGE_LEVELS)
+
+export default function Leaderboard({ currentUserId, currentLevel }) {
+    const [view, setView] = useState('all')        // 'all' | 'bylevel'
+    const [activeLevel, setActiveLevel] = useState(currentLevel)
     const [data, setData] = useState([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        loadLeaderboard()
-    }, [])
+        if (view === 'all') {
+            loadAll()
+        } else {
+            loadByLevel(activeLevel)
+        }
+    }, [view, activeLevel])
 
-    const loadLeaderboard = async () => {
+    const loadAll = async () => {
         setLoading(true)
         try {
-            const result = await getAllLeaderboard()
-            setData(result)
+            setData(await getAllLeaderboard())
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const loadByLevel = async (levelId) => {
+        setLoading(true)
+        try {
+            setData(await getLeaderboardByLevel(levelId))
         } catch (err) {
             console.error(err)
         } finally {
@@ -30,9 +48,68 @@ export default function Leaderboard({ currentUserId }) {
 
     return (
         <div className="card fade-in">
-            <h2 className="text-lg font-extrabold mb-1">🏆 Leaderboard</h2>
-            <p className="text-xs text-[color:var(--text-muted)] mb-4">All challengers ranked by completed days</p>
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-extrabold">🏆 Leaderboard</h2>
 
+                {/* View toggle pill */}
+                <div className="flex items-center p-0.5 rounded-xl gap-0.5"
+                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                    <button
+                        onClick={() => setView('all')}
+                        id="lb-toggle-all"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                        style={view === 'all' ? {
+                            background: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
+                            color: 'white',
+                            boxShadow: '0 2px 8px var(--accent-glow)',
+                        } : {
+                            color: 'var(--text-secondary)',
+                            background: 'transparent',
+                        }}
+                    >
+                        🌍 All
+                    </button>
+                    <button
+                        onClick={() => setView('bylevel')}
+                        id="lb-toggle-bylevel"
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                        style={view === 'bylevel' ? {
+                            background: 'linear-gradient(135deg, var(--accent), var(--accent-light))',
+                            color: 'white',
+                            boxShadow: '0 2px 8px var(--accent-glow)',
+                        } : {
+                            color: 'var(--text-secondary)',
+                            background: 'transparent',
+                        }}
+                    >
+                        🎯 By Level
+                    </button>
+                </div>
+            </div>
+
+            {/* Level tabs — only shown in By Level view */}
+            {view === 'bylevel' && (
+                <div className="flex gap-1.5 overflow-x-auto mb-4 pb-1 fade-in" style={{ scrollbarWidth: 'none' }}>
+                    {levels.map(level => (
+                        <button
+                            key={level.id}
+                            onClick={() => setActiveLevel(level.id)}
+                            className={`tab ${activeLevel === level.id ? 'active' : ''}`}
+                            id={`lb-tab-${level.id}`}
+                        >
+                            {level.icon} {level.name}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <p className="text-xs text-[color:var(--text-muted)] mb-3">
+                {view === 'all'
+                    ? 'All challengers ranked by completed days'
+                    : `${CHALLENGE_LEVELS[activeLevel]?.icon} ${CHALLENGE_LEVELS[activeLevel]?.name} — ranked by completed days`}
+            </p>
+
+            {/* List */}
             {loading ? (
                 <div className="text-center py-8">
                     <div className="spinner mx-auto mb-3"></div>
@@ -41,7 +118,9 @@ export default function Leaderboard({ currentUserId }) {
             ) : data.length === 0 ? (
                 <div className="text-center py-8">
                     <div className="text-4xl mb-3">🏜️</div>
-                    <p className="text-sm text-[color:var(--text-muted)]">No one has checked in yet. Be the first!</p>
+                    <p className="text-sm text-[color:var(--text-muted)]">
+                        {view === 'all' ? 'No one has checked in yet.' : 'No one on this level yet. Be the first!'}
+                    </p>
                 </div>
             ) : (
                 <div className="space-y-1">
@@ -71,19 +150,21 @@ export default function Leaderboard({ currentUserId }) {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                        <span className="text-xs" style={{ color: 'var(--accent)' }}>
-                                            {level?.icon} {level?.name}
-                                        </span>
-                                        <span className="text-[color:var(--border)]">·</span>
+                                        {view === 'all' && (
+                                            <>
+                                                <span className="text-xs" style={{ color: 'var(--accent)' }}>
+                                                    {level?.icon} {level?.name}
+                                                </span>
+                                                <span className="text-[color:var(--border)]">·</span>
+                                            </>
+                                        )}
                                         <span className="text-xs text-[color:var(--text-muted)]">
                                             {user.score} day{user.score !== 1 ? 's' : ''} done
                                         </span>
                                     </div>
                                 </div>
                                 {user.streak > 0 && (
-                                    <span className="streak-badge ml-2">
-                                        🔥 {user.streak}
-                                    </span>
+                                    <span className="streak-badge ml-2">🔥 {user.streak}</span>
                                 )}
                             </div>
                         )
